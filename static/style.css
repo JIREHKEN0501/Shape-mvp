@@ -1,0 +1,218 @@
+/* test if CSS is loading */
+body {
+  background: #ffcccc !important;
+  color: #111 !important;
+  font-size: 20px;
+}
+h2 {
+  color:#002bff;
+  text-transform: uppercase;
+}
+button, input[type="submit"] {
+  background: #008cff;
+  color: white;
+  font-weight: bold;
+  border-radius: 8px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Poppins", sans-serif;
+  background: #f4f6f8;
+  color: #222;
+  overflow-x: hidden;
+}
+
+/* Smooth transitions for UI changes */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* ===========================
+   NAVIGATION BAR
+=========================== */
+.navbar {
+  background-color: #1f2937;
+  color: #fff;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+
+.navbar h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.navbar .user-status {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* ===========================
+   DASHBOARD WRAPPER
+=========================== */
+.dashboard-container {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 25px;
+  gap: 20px;
+  justify-content: center;
+}
+
+/* ===========================
+   MODULE CARDS
+=========================== */
+.module-card {
+  background: #fff;
+  border-radius: 12px;
+  width: 310px;
+  min-height: 220px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.module-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.module-card h2 {
+  font-size: 18px;
+  color: #111;
+  margin-bottom: 10px;
+}
+
+.module-card p {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+/* ===========================
+   BUTTONS
+=========================== */
+.btn {
+  background: #2563eb;
+  border: none;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #1d4ed8;
+}
+
+/* ===========================
+   TASK WINDOW
+=========================== */
+.task-window {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  padding: 25px;
+  margin: 20px auto;
+  max-width: 700px;
+}
+
+.task-window h2 {
+  font-size: 22px;
+  margin-bottom: 12px;
+  color: #222;
+}
+.task-window p {
+  color: #555;
+  font-size: 15px;
+  margin-bottom: 20px;
+}
+
+/* ===========================
+   INPUT FIELDS
+=========================== */
+input[type="text"], textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+input:focus, textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+}
+
+/* ===========================
+   PROGRESS + METRICS
+=========================== */
+.metrics-panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 15px 20px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+  max-width: 350px;
+  margin: 20px auto;
+  text-align: center;
+}
+
+.metrics-panel h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: #222;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #444;
+}
+
+/* ===========================
+   EMOTION FEEDBACK (Visualizer)
+=========================== */
+.emotion-display {
+  text-align: center;
+  background: linear-gradient(135deg, #e0e7ff, #f0fdfa);
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+  margin-top: 20px;
+}
+
+.emotion-display h4 {
+  color: #111;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.emotion-display span {
+  display: inline-block;
+  background: #2563eb;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+/* ===========================
+   FOOTER
+=========================== */
+footer {
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  margin-top: 40px;
+  padding: 15px;
+}

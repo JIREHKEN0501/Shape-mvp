@@ -1,0 +1,149 @@
+<DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+<title>Sequence Test - Consent required</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* quick inline styles for modal clarity (you can move these into style.css) */
+    .consent-modal {
+      position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
+      background: rgba(0,0,0,0.4); z-index: 9999;
+    }
+    .consent-card { background: white; padding: 18px; border-radius: 10px; width: 480px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Complete the sequence: 1, 2, 5, 11, ?</h2>
+
+    <form method="post" id="answer-form" action="{{ url_for('index') }}">
+      <input type="text" name="answer" id="answer" placeholder="Enter your answer" value="{{ user_answer|default('') }}" required>
+    
+      <!-- Dynamic Honeypot Field (rotates via cookie) -->
+      <input type="text"
+       id="dynamic-hp"
+       name="{{ hp_field }}"   <!-- server fallback if JS fails -->
+       value=""
+       autocomplete="off"
+       style="display:none">
+
+      <input type="submit" value="Submit" id="submit-btn" disabled>
+    </form>
+
+    <div id="feedback" style="margin-top:12px; font-weight:700;">
+      {% if result == 'correct' %}
+        <span style="color:green;">Correct 🎉</span>
+      {% elif result == 'wrong' %}
+        <span style="color:red;">Wrong — try again.</span>
+      {% elif result == 'no_consent' %}
+        <span style="color:darkorange;">You must accept consent before submitting.</span>
+      {% endif %}
+    </div>
+
+    <p style="margin-top:18px; color:#444;">Your participation helps development. See <a href="#">Privacy Notice</a>.</p>
+  </div>
+
+  <!-- Consent modal -->
+  <div id="consentModal" class="consent-modal">
+    <div class="consent-card">
+      <h3>Consent to participate</h3>
+      <p>By continuing you consent to this project's collection of interaction data (answers, response times, hints used) for research and product improvement. Data will be retained according to our policy. You may withdraw anytime. <strong>No PII will be shared publicly.</strong></p>
+      <div style="display:flex; gap:10px; margin-top:12px; justify-content:flex-end;">
+        <button id="declineBtn" type="button">Decline</button>
+        <button id="acceptBtn" type="button">Accept & Begin</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+// -----------------------------------------------------------
+// Dynamic Honeypot Field Rotation  (Upgrade #3 - Client Side)
+// -----------------------------------------------------------
+// On every page load, ensure a cookie `hp_field` exists.
+// If missing → generate a random honeypot field name.
+// Then update the hidden input so the server tripwire checks it.
+
+function newHpField() {
+    // Generate hp_<random>
+    return "hp_" + Math.random().toString(36).substring(2, 12);
+}
+
+// Read cookie helper (returns cookie value or null)
+function getCookie(name) {
+    const parts = document.cookie.split(';').map(p => p.trim());
+    const part = parts.find(c => c.startsWith(name + '='));
+    return part ? decodeURIComponent(part.split('=')[1]) : null;
+}
+
+// Set cookie helper (1-day lifetime, SameSite=Lax)
+function setCookie(name, value, days = 1) {
+    const maxAge = 60 * 60 * 24 * days;
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax; Max-Age=${maxAge}`;
+}
+
+// Ensure cookie exists and update the hidden honeypot input
+(function ensureHp() {
+    let hpField = getCookie('hp_field');
+    if (!hpField) {
+        hpField = newHpField();
+        setCookie('hp_field', hpField, 1);   // 1-day cookie
+    }
+
+    // Update hidden input
+    const hpInput = document.querySelector('#dynamic-hp');
+    if (hpInput) {
+        hpInput.name = hpField;
+        hpInput.id = hpField;   // JS can still find it before renaming
+    }
+})();
+ 
+
+// -----------------------------------------------------------
+// Consent Flow
+// -----------------------------------------------------------
+const modal = document.getElementById('consentModal');
+const accept = document.getElementById('acceptBtn');
+const decline = document.getElementById('declineBtn');
+const submitBtn = document.getElementById('submit-btn');
+
+function cookiesContain(name) {
+    return document.cookie.split(';').some(c => c.trim().startsWith(name + '='));
+}
+
+// If participant_id cookie exists, hide modal and enable form
+if (cookiesContain('participant_id')) {
+    modal.style.display = 'none';
+    submitBtn.disabled = false;
+}
+
+accept.addEventListener('click', () => {
+    fetch('/consent', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: '{}'
+    })
+    .then(r => r.json())
+    .then(j => {
+        if (j.ok) {
+            modal.style.display = 'none';
+            submitBtn.disabled = false;
+        } else {
+            alert('Could not record consent — try again.');
+        }
+    })
+    .catch(e => {
+        console.error(e);
+        alert('Error recording consent.');
+    });
+});
+
+decline.addEventListener('click', () => {
+    alert('You declined consent. You cannot participate without consenting.');
+});
+  </script>
+</body>
+</html>
+  </style>
+

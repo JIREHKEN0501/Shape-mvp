@@ -1,0 +1,54 @@
+{
+  "tasks": [
+    {
+      "task_id": "pattern_001",
+      "category": "pattern_recognition",
+      "difficulty": 1,
+      "instruction": "Find the next number in the sequence: 2, 4, 8, 16, ?",
+      "options": ["18", "24", "32", "20"],
+      "answer": "32"
+    },
+    {
+      "task_id": "logic_001",
+      "category": "logical_reasoning",
+      "difficulty": 1,
+      "instruction": "If all engineers are problem-solvers and some problem-solvers are leaders, can we say some engineers are leaders?",
+      "options": ["Yes", "No", "Cannot be determined"],
+      "answer": "Cannot be determined"
+    },
+    {
+      "task_id": "emotion_001",
+      "category": "emotional_intelligence",
+      "difficulty": 2,
+      "instruction": "Your teammate misses a deadline due to personal issues. What’s your best initial reaction?",
+      "options": [
+        "Criticize them for unprofessionalism",
+        "Ask privately if they’re okay and offer help",
+        "Ignore it and move on",
+        "Report them immediately"
+      ],
+      "answer": "Ask privately if they’re okay and offer help"
+    },
+    {
+      "task_id": "moral_001",
+      "category": "moral_dilemma",
+      "difficulty": 2,
+      "instruction": "You find a small but critical error in a report already sent to management. What do you do?",
+      "options": [
+        "Stay quiet and hope it’s unnoticed",
+        "Report it immediately and send a corrected version",
+        "Blame a teammate for the mistake",
+        "Wait until asked about it"
+      ],
+      "answer": "Report it immediately and send a corrected version"
+    },
+    {
+      "task_id": "memory_001",
+      "category": "memory_test",
+      "difficulty": 1,
+      "instruction": "Memorize this sequence: CAT, TREE, MOON. Now, which of these words appeared last?",
+      "options": ["CAT", "TREE", "MOON", "SUN"],
+      "answer": "MOON"
+    }
+  ]
+}

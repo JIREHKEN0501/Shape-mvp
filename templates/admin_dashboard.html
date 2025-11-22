@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Admin dashboard — Shape MVP</title>
+  <style>
+    body { font-family: Inter, system-ui, Arial; max-width: 980px; margin: 24px auto; line-height:1.45 }
+    header { display:flex; justify-content:space-between; align-items:center; }
+    .card { background:#fff; border:1px solid #e6e6e6; padding:14px; border-radius:8px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+    .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:14px; }
+    table { width:100%; border-collapse: collapse; font-size:0.95rem; }
+    th, td { padding:6px 8px; border-bottom:1px solid #eee; text-align:left }
+    .muted { color:#666; font-size:0.9rem }
+    .btn { padding:8px 10px; border-radius:6px; display:inline-block; text-decoration:none; background:#0b74ff; color:#fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Admin dashboard</h1>
+    <div>
+      <a class="btn" href="{{ url_for('admin_dashboard') }}">Refresh</a>
+    </div>
+  </header>
+
+  <section class="grid">
+    <div class="card">
+      <h3>Logs</h3>
+      <p class="muted">Quick counts</p>
+      <ul>
+        <li>Audit log lines: {{ counts.audit_log_lines }}</li>
+        <li>Consent log lines: {{ counts.consent_log_lines }}</li>
+        <li>Data log lines: {{ counts.data_log_lines }}</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Sessions</h3>
+      <p class="muted">Active / stored sessions</p>
+      <p>{{ counts.sessions }}</p>
+    </div>
+
+    <div class="card">
+      <h3>Actions</h3>
+      <p class="muted">Quick admin tools</p>
+      <p>
+        <!-- Example UI: export form -->
+        <form id="exportForm" style="display:flex; gap:6px;" onsubmit="doExport(event)">
+          <input id="exportId" placeholder="participant_id" />
+          <button class="btn" type="submit">Export</button>
+        </form>
+        <script>
+          async function doExport(e) {
+            e.preventDefault();
+            const id = document.getElementById('exportId').value.trim();
+            if (!id) return alert('enter participant id');
+            const token = prompt('Enter admin token (will not be saved)'); // quick way to pass token
+            if (!token) return;
+            const res = await fetch('/admin/export/' + encodeURIComponent(id), {
+              headers: {'X-ADMIN-TOKEN': token}
+            });
+            const json = await res.json();
+            if (json.ok && json.records) {
+              const blob = new Blob([JSON.stringify(json, null, 2)], {type:'application/json'});
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = `export-${id}.json`;
+              a.click();
+            } else {
+              alert('Export failed: ' + (json.error || JSON.stringify(json)));
+            }
+          }
+        </script>
+      </p>
+    </div>
+  </section>
+
+  <section style="margin-top:18px;">
+    <div class="card">
+      <h3>Recent events</h3>
+      <table>
+        <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Subject</th></tr></thead>
+        <tbody>
+          {% for r in recent %}
+          <tr><td>{{ r.ts }}</td><td>{{ r.action }}</td><td>{{ r.actor }}</td><td>{{ r.subject }}</td></tr>
+          {% else %}
+          <tr><td colspan="4" class="muted">No recent events</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</body>
+</html>
+

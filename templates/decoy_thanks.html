@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Processing</title></head>
+<body>
+  <div style="max-width:640px;margin:30px auto;padding:20px;background:#fff;border-radius:6px;">
+    <h3>Processing...</h3>
+    <p>Your request is being reviewed. Please wait.</p>
+    <script>
+      // small jitter to cause automated scanners to reveal themselves (optional)
+      setTimeout(() => { fetch('/snare', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ts: Date.now(), note: 'decoy_thanks'})
+      }).catch(()=>{}); }, 1200);
+    </script>
+  </div>
+</body></html>
+

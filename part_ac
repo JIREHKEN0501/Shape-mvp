@@ -1,0 +1,500 @@
+    """
+    honeypot_val = None
+
+    # Determine expected honeypot field name (cookie preferred)
+    hp_name = request.cookies.get("hp_field") or os.environ.get("HONEYPOT_FIELD", "hp_website")
+
+    # Handle JSON bodies (API-style)
+    if request.is_json:
+        body = request.get_json(silent=True) or {}
+        honeypot_val = (body.get(hp_name) or "").strip()
+    else:
+        # Form submissions
+        honeypot_val = (request.form.get(hp_name) or "").strip()
+
+    # If honeypot field is filled -> suspicious -> block + audit
+    if honeypot_val:
+        try:
+            audit_record(
+                action="honeypot_trigger",
+                actor="unknown",
+                subject=request.path,
+                status="denied",
+                extra={"hp_field": hp_name, "ip": request.remote_addr}
+            )
+        except Exception:
+            pass
+
+        return jsonify({"error": "bot_detected"}), 400
+
+    return None
+
+def audit_record(action: str,
+                 actor: str = None,
+                 subject: str = None,
+                 status: str = None,
+                 extra: dict | None = None,
+                 notes: str | None = None):
+    """Append a structured audit line to AUDIT_LOG (JSONL)."""
+    # Back-compat: allow callers to pass notes=... (string)
+    if notes:
+        if isinstance(extra, dict) and extra:
+            extra = {"notes": notes, **extra}
+        else:
+            extra = {"notes": notes}
+
+    try:
+        rec = {
+            "ts": now_iso(),
+            "ip": request.remote_addr if request else None,
+            "action": action,
+            "actor": actor,
+            "subject": subject,
+            "status": status,
+            "extra": extra or {},
+        }
+    except RuntimeError:
+        rec = {
+            "ts": now_iso(),
+            "ip": None,
+            "action": action,
+            "actor": actor,
+            "subject": subject,
+            "status": status,
+            "extra": extra or {},
+        }
+
+    append_jsonl_secure(AUDIT_LOG, rec)
+
+def require_admin(f):
+    """Decorator identical to admin_required (compatibility)."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        token_cfg = get_admin_token()
+        if not token_cfg:
+            return jsonify({"error": "Admin token not configured"}), 500
+
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            provided = auth.split(" ", 1)[1].strip()
+        else:
+            provided = request.headers.get("X-ADMIN-TOKEN", "").strip() or auth.strip()
+
+        if provided != token_cfg:
+            try:
+                audit_record(
+                    action="admin_access_denied",
+                    actor="unknown",
+                    subject=request.path,
+                    status="denied",
+                    extra={"ip": request.remote_addr}
+                )
+            except Exception:
+                pass
+            return jsonify({"error": "Unauthorized"}), 401
+
+        return f(*args, **kwargs)
+    return wrapper
+
+# keep compatibility with routes using @admin_required
+admin_required = require_admin
+
+#  VALIDATION HELPERS
+def validate_json_field(data, field, expected_type):
+    """Return (True, value) or (False, error message)."""
+    if field not in data:
+        return False, f"Missing field: {field}"
+    if not isinstance(data[field], expected_type):
+        return False, f"Field '{field}' must be {expected_type.__name__}"
+    return True, data[field]
+
+def require_json(f):
+    """Ensure request is JSON."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+        return f(*args, **kwargs)
+    return wrapper
+
+def validate_behavioral_session(s: dict):
+    req = ["participant_id", "task_id", "start_ts", "end_ts", "events"]
+    for k in req:
+        if k not in s: return False, f"missing '{k}'"
+    if not isinstance(s["events"], list): return False, "'events' must be a list"
+    for i, e in enumerate(s["events"]):
+        if not isinstance(e, dict): return False, f"event[{i}] must be object"
+        if "type" not in e or "ts" not in e: return False, f"event[{i}] missing 'type' or 'ts'"
+        if not isinstance(e["type"], str): return False, f"event[{i}].type must be string"
+        if not isinstance(e["ts"], int): return False, f"event[{i}].ts must be int (ms)"
+    return True, None
+
+def validate_cognitive_session(s: dict):
+    if "participant_id" not in s: return False, "missing 'participant_id'"
+    if "task_id" not in s: return False, "missing 'task_id'"
+    if "modules" not in s or not isinstance(s["modules"], list):
+        return False, "'modules' must be a list"
+    for mi, m in enumerate(s["modules"]):
+        if not isinstance(m, dict): return False, f"modules[{mi}] must be object"
+        if "module_name" not in m: return False, f"modules[{mi}] missing 'module_name'"
+        qs = m.get("questions", [])
+        if not isinstance(qs, list): return False, f"modules[{mi}].questions must be list"
+        for qi, q in enumerate(qs):
+            if not isinstance(q, dict): return False, f"q[{qi}] in module[{mi}] must be object"
+            for k in ["question_id", "correct", "time_taken_seconds"]:
+                if k not in q: return False, f"q[{qi}] in module[{mi}] missing '{k}'"
+    return True, None
+
+
+# --------------------------
+#  MAIN ROUTES
+# --------------------------
+@limiter.limit("30 per minute")
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    result = None
+    user_answer = ""
+    participant_id = request.cookies.get("participant_id")
+
+    if request.method == 'POST':
+        # Require consent
+        if not participant_id:
+            result = "no_consent"
+            user_answer = request.form.get('answer', '').strip()
+            ok = (user_answer == CORRECT_ANSWER)
+            result = "correct" if ok else "wrong"
+
+            # Log event (anonymized answer)
+            log = {
+                "participant_id": participant_id,
+                "timestamp": now_iso(),
+                "task_id": "sequence_test_001",
+                "answer_hash": hashlib.sha256(user_answer.encode("utf-8")).hexdigest(),
+                "result": result
+            }
+            append_jsonl_secure(DATA_LOG, log)
+            audit_record(
+                action="submit_answer",
+                actor=f"participant:{participant_id}",
+                subject="sequence_test_001",
+                status="ok" if result == "correct" else "wrong",
+                extra={"target_id": participant_id, "result": result},
+            )
+    return render_template(
+        'index.html',
+        result=result,
+        user_answer=user_answer,
+        hp_field=request.cookies.get("hp_field") or HONEYPOT_FIELD or "hp_website"
+    )
+
+
+@limiter.limit("5 per minute")
+@app.route('/consent', methods=['POST'])
+def consent():
+    trip = bot_tripwire()
+    if trip:
+        return trip
+    """Record participant consent."""
+    ip = request.remote_addr or ""
+    participant_id = str(uuid.uuid4())
+
+    record = {
+        "participant_id": participant_id,
+        "timestamp": now_iso(),
+        "consent_version": CONSENT_VERSION,
+        "consent_given": True,
+        "ip_hash": ip_hash(ip)
+    }
+
+    append_jsonl_secure(CONSENT_LOG, record)
+    audit_record(actor=f"participant:{participant_id}", action="consent_given")
+
+    resp = make_response(jsonify({"ok": True, "participant_id": participant_id}))
+    resp.set_cookie("participant_id", participant_id, max_age=60*60*24*365, httponly=True, samesite="Lax")
+    return resp
+
+
+# ============================================================
+# ANALYTICS ROUTES
+# ============================================================
+@app.route("/submit_result", methods=["POST"])
+@limiter.limit("20 per minute") 
+def submit_result():
+    trip = bot_tripwire()
+    if trip:
+        return trip
+    """
+    Accepts JSON body with a session object.
+    Automatically detects type (behavioral or cognitive)
+    and computes the correct metrics.
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    session = request.get_json()
+
+
+    # -------------------------------------------
+    # VALIDATION LAYER: reject malformed sessions
+    # -------------------------------------------
+    if isinstance(session, dict) and "events" in session:
+        ok, msg = validate_behavioral_session(session)
+        if not ok:
+            return jsonify({"error": msg}), 400
+
+    elif isinstance(session, dict) and "modules" in session:
+        ok, msg = validate_cognitive_session(session)
+        if not ok:
+            return jsonify({"error": msg}), 400
+    # -------------------------------------------
+
+
+    saved = save_session_result(session)
+
+    # detect session type and compute metrics
+    if isinstance(saved, dict) and "events" in saved:
+        metrics = compute_behavioral_metrics(saved)
+        session_type = "behavioral"
+    elif isinstance(saved, dict) and "modules" in saved:
+        metrics = compute_cognitive_metrics(saved)
+        session_type = "cognitive"
+    else:
+        metrics = {"note": "Unknown data type; no metrics computed"}
+        session_type = "unknown"
+    # ✅ AUDIT LOG HERE
+    audit_record(
+        actor=f"participant:{saved.get('participant_id', 'unknown')}",
+        action="submit_result",
+        target_id=saved.get("task_id"),
+        notes=f"type={session_type}"
+    )
+    return jsonify({"saved": saved, "metrics": metrics}), 201
+
+# -----------------------------------------
+# AUDIT LOG ROUTE
+# -----------------------------------------
+@app.route("/audit/last/<int:n>", methods=["GET"])
+@admin_required
+@limiter.limit("10 per minute") 
+def last_audit(n):
+    try:
+        entries = []
+        with open(AUDIT_LOG, "r", encoding="utf-8") as f:
+            for line in f:
+                entries.append(json.loads(line))
+        return jsonify({"audit": entries[-n:]}), 200
+    except Exception as e:
+        return jsonify({"error": "failed to read audit log", "detail": str(e)}), 500
+
+@app.route("/metrics", methods=["GET"])
+@admin_required
+@limiter.limit("2 per second")
+def metrics():
+    """Return aggregated metrics."""
+    try:
+        agg = aggregate_metrics()
+     
+        # ✅ AUDIT LOG: admin requested aggregated metrics
+        audit_record(
+            actor="admin",
+            action="view_metrics",
+            notes=f"returned_items={len(agg)}"
+        )
+
+        return jsonify(agg), 200
+    except Exception as e:
+        return jsonify({"error": "metrics computation failed", "detail": str(e)}), 500
+
+@app.route("/export", methods=["GET"])
+@admin_required
+@limiter.limit("5 per minute") 
+def export():
+    """Return all stored session rows (admin only)."""
+    rows = export_all()
+
+
+    #AUDIT LOG: admin exported data
+    audit_record(
+        actor="admin",
+        action="export_all_data",
+        notes=f"rows={len(rows)}"
+    )
+
+    return jsonify(rows), 200
+
+
+@app.route("/erase/<participant_id>", methods=["DELETE"])
+@admin_required
+@limiter.limit("3 per minute")
+def erase(participant_id):
+    """Delete data for a participant ID (admin only)."""
+    removed = erase_participant(participant_id)
+
+     # ✅ AUDIT LOG: admin erased participant data
+    audit_record(
+        actor="admin",
+        action="erase_participant",
+        target_id=participant_id,
+        notes=f"removed={removed}"
+    )
+
+
+    return jsonify({"removed": removed}), 200
+
+@app.route("/data_type_summary", methods=["GET"])
+@admin_required
+@limiter.limit("20 per minute")
+def data_type_summary():
+    """Counts behavioral vs cognitive sessions."""
+    try:
+        rows = export_all()
+    except Exception as e:
+        return jsonify({"error": "failed to read data", "detail": str(e)}), 500
+
+    behavioral = cognitive = unknown = 0
+
+    for r in rows:
+        if isinstance(r, dict) and "events" in r:
+            behavioral += 1
+        elif isinstance(r, dict) and "modules" in r:
+            cognitive += 1
+        else:
+            unknown += 1
+
+    return jsonify({
+        "behavioral_sessions": behavioral,
+        "cognitive_sessions": cognitive,
+        "unknown_sessions": unknown,
+        "total": behavioral + cognitive + unknown
+    }), 200
+
+
+@app.route("/export/dashboard", methods=["GET"])
+@admin_required
+@limiter.limit("10 per minute")
+def export_dashboard():
+    """
+    Returns chart-ready metrics for plotting progress over time.
+    - Cognitive sessions -> accuracy%, avg time, avg hesitation, avg retries
+    - Behavioral sessions -> performance_score, total_time, hints, retries, hesitation
+    """
+    try:
+        rows = export_all()   # already implemented in your project
+    except Exception as e:
+        return jsonify({"error": "failed to read data", "detail": str(e)}), 500
+
+    # Structures to hold chart series
+    cognitive = {
+        "index": [],
+        "accuracy_pct": [],
+        "avg_time_s": [],
+        "avg_hesitation_s": [],
+        "avg_retries": [],
+    }
+
+    behavioral = {
+        "index": [],
+        "performance_score": [],
+        "total_time_s": [],
+        "hints": [],
+        "retries": [],
+        "hesitation_s": [],
+    }
+
+    cog_i = beh_i = 0
+
+    # Loop through every session record
+    for entry in rows:
+
+        # ==========================================================
+        # COGNITIVE SESSION (modules → questions)
+        # ==========================================================
+        if isinstance(entry, dict) and "modules" in entry:
+            modules = entry.get("modules", [])
+
+            total_questions = 0
+            correct = 0
+            total_time = 0.0
+            total_hesitation = 0.0
+            total_retries = 0.0
+
+            for m in modules:
+                for q in m.get("questions", []):
+                    total_questions += 1
+                    if q.get("correct"):
+                        correct += 1
+                    total_time += q.get("time_taken_seconds", 0) or 0
+                    total_hesitation += q.get("hesitation_seconds", 0) or 0
+                    total_retries += q.get("retries", 0) or 0
+
+            if total_questions > 0:
+                cog_i += 1
+                cognitive["index"].append(cog_i)
+                cognitive["accuracy_pct"].append(round((correct / total_questions) * 100, 2))
+                cognitive["avg_time_s"].append(round(total_time / total_questions, 2))
+                cognitive["avg_hesitation_s"].append(round(total_hesitation / total_questions, 2))
+                cognitive["avg_retries"].append(round(total_retries / total_questions, 2))
+
+
+        # ==========================================================
+        # BEHAVIORAL SESSION (events → timestamps)
+        # ==========================================================
+        elif isinstance(entry, dict) and "events" in entry:
+
+            start = entry.get("start_ts")
+            end = entry.get("end_ts")
+            total_ms = max(0, (end - start)) if (start and end) else None
+            events = entry.get("events", [])
+
+            # Count hints + retries
+            hints = sum(1 for e in events if e.get("type") == "hint")
+            retries = sum(1 for e in events if e.get("type") == "retry")
+
+            # Hesitation calculation (gaps > 1500ms)
+            timestamps = sorted([e.get("ts") for e in events if isinstance(e.get("ts"), (int, float))])
+            hesitation_ms = 0
+            for a, b in zip(timestamps, timestamps[1:]):
+                gap = b - a
+                if gap > 1500:
+                    hesitation_ms += gap
+
+            # Performance score (lightweight version of compute_behavioral_metrics)
+            score = 100
+            if total_ms is not None:
+                score -= (total_ms / 1000.0) * 0.5
+            score -= hints * 5
+            score -= retries * 3
+            score = round(max(0, score), 2)
+
+            beh_i += 1
+            behavioral["index"].append(beh_i)
+            behavioral["performance_score"].append(score)
+            behavioral["total_time_s"].append(round(total_ms / 1000.0, 3) if total_ms else None)
+            behavioral["hints"].append(hints)
+            behavioral["retries"].append(retries)
+            behavioral["hesitation_s"].append(round(hesitation_ms / 1000.0, 3))
+
+        # ==========================================================
+        # UNKNOWN ENTRY (should not happen but safe to ignore)
+        # ==========================================================
+        else:
+            continue
+
+    return jsonify({
+        "cognitive": cognitive,
+        "behavioral": behavioral
+    }), 200
+
+
+# ============================================================
+# HEALTH CHECK / STATUS
+# ============================================================
+
+def _count_jsonl_lines(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return sum(1 for _ in f)
+    except Exception:
+        return None  # unreadable or missing
+
+def _read_json_file(path):

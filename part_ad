@@ -1,0 +1,282 @@
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return True, json.load(f)
+    except FileNotFoundError:
+        return False, None
+    except Exception:
+        return True, None  # exists but invalid JSON
+
+@limiter.limit("30 per minute")
+@app.route("/status", methods=["GET"])
+def status():
+    # Uses variables you already defined earlier in app.py:
+    # BASE_DIR, LOG_DIR, CONSENT_LOG, DATA_LOG, AUDIT_LOG
+    session_file = os.path.join(BASE_DIR, "session_data.json")
+
+    exists = {
+        "log_dir": os.path.isdir(LOG_DIR),
+        "session_data_json": os.path.isfile(session_file),
+        "consent_log_jsonl": os.path.isfile(CONSENT_LOG),
+        "data_log_jsonl": os.path.isfile(DATA_LOG),
+        "audit_log_jsonl": os.path.isfile(AUDIT_LOG),
+    }
+
+    session_exists, session_data = _read_json_file(session_file)
+    session_parsable = (session_data is not None) if session_exists else False
+
+    consent_count = _count_jsonl_lines(CONSENT_LOG) if exists["consent_log_jsonl"] else None
+    audit_count = _count_jsonl_lines(AUDIT_LOG) if exists["audit_log_jsonl"] else None
+    data_log_count = _count_jsonl_lines(DATA_LOG) if exists["data_log_jsonl"] else None
+
+    writable = {
+        "log_dir_writable": os.access(LOG_DIR, os.W_OK),
+        "base_dir_writable": os.access(BASE_DIR, os.W_OK),
+    }
+
+    admin_token_configured = bool(get_admin_token())
+
+    if isinstance(session_data, list):
+        session_count = len(session_data)
+    elif isinstance(session_data, dict):
+        session_count = 1
+    else:
+        session_count = 0 if session_parsable else None
+
+    ok_flags = [
+        exists["log_dir"],
+        writable["log_dir_writable"],
+        session_exists,
+        session_parsable,
+        admin_token_configured,
+    ]
+    status_level = "ok" if all(ok_flags) else "degraded"
+
+    return jsonify({
+        "status": status_level,
+        "files": exists,
+        "writable": writable,
+        "admin_token_configured": admin_token_configured,
+        "counts": {
+            "sessions": session_count,
+            "consent_log_lines": consent_count,
+            "audit_log_lines": audit_count,
+            "data_log_lines": data_log_count,
+        },
+    }), 200
+
+
+# --------------------------
+#  COMPLIANCE ENDPOINTS
+# --------------------------
+
+def anonymize_data_for_participant(pid):
+    """Replace participant_id in DATA_LOG with 'erased_' token (keeps audit)."""
+    erased_token = f"erased_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    temp_path = DATA_LOG + ".tmp"
+
+    if not os.path.exists(DATA_LOG):
+        return False, "No data log found."
+
+    try:
+        with open(DATA_LOG, "r", encoding="utf-8") as fin, open(temp_path, "w", encoding="utf-8") as fout:
+            for line in fin:
+                try:
+                    j = json.loads(line)
+                except:
+                    fout.write(line)
+                    continue
+                if j.get("participant_id") == pid:
+                    j["participant_id"] = erased_token
+                    j["erased"] = True
+                    j["erasure_timestamp"] = now_iso()
+                fout.write(json.dumps(j, ensure_ascii=False) + "\n")
+
+        backup = DATA_LOG + ".bak." + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        os.rename(DATA_LOG, backup)
+        os.rename(temp_path, DATA_LOG)
+        return True, f"Entries anonymized; backup at {backup}"
+    except Exception as e:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return False, str(e)
+
+
+@app.route('/export/<participant_id>', methods=['GET'])
+def export_data(participant_id):
+    """Allow admin or participant to export their data."""
+    # Always read current admin token (supports rotation)
+    token_cfg = get_admin_token()
+
+    # Accept Authorization: Bearer <token> OR X-ADMIN-TOKEN: <token>
+    provided = extract_admin_token_from_request()
+
+    cookie_pid = request.cookies.get("participant_id")
+    if token_cfg and provided and hmac.compare_digest(provided, token_cfg):
+        actor = "admin"
+    elif cookie_pid == participant_id:
+        actor = f"participant:{participant_id}"
+    else:
+        audit_record(actor="unauthorized", action="export_attempt", subject=participant_id, status="denied",
+                     extra={"ip": request.remote_addr})
+        return jsonify({"error": "Unauthorized"}), 401
+
+    results = []
+    if os.path.exists(DATA_LOG):
+        with open(DATA_LOG, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    j = json.loads(line)
+                    if j.get("participant_id") == participant_id:
+                        results.append(j)
+                except Exception:
+                    pass
+
+    audit_record(actor=actor, action="export", subject=participant_id,
+                 status="ok", extra={"count": len(results)})
+    return jsonify({"participant_id": participant_id, "events": results})
+
+
+@app.route('/erase', methods=['POST'])
+def erase_self():
+    """Participant-initiated erasure (anonymizes logs)."""
+    pid = request.cookies.get("participant_id")
+    if not pid:
+        return jsonify({"error": "No participant cookie found"}), 400
+
+    data = request.get_json() or {}
+    if not data.get("confirm"):
+        return jsonify({"error": "Please confirm erasure by sending {\"confirm\": true}"}), 400
+
+    ok, msg = anonymize_data_for_participant(pid)
+    audit_record(actor=f"participant:{pid}", action="erase_request", notes=msg)
+    if ok:
+        resp = jsonify({"ok": True, "message": "Your data has been anonymized."})
+        resp.set_cookie("participant_id", "", expires=0)
+        return resp
+    else:
+        return jsonify({"error": "Erase failed", "details": msg}), 500
+
+
+@app.route('/admin/delete_participant/<participant_id>', methods=['POST'])
+@require_admin
+def admin_delete(participant_id):
+    """Admin-only permanent delete (backed up before removal)."""
+    if not os.path.exists(DATA_LOG):
+        return jsonify({"error": "No data log"}), 400
+
+    backup = DATA_LOG + ".bak." + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+    try:
+        os.rename(DATA_LOG, backup)
+        kept, removed = 0, 0
+        with open(backup, "r", encoding="utf-8") as fin, open(DATA_LOG, "w", encoding="utf-8") as fout:
+            for line in fin:
+                try:
+                    j = json.loads(line)
+                    if j.get("participant_id") == participant_id:
+                        removed += 1
+                        continue
+                    fout.write(json.dumps(j, ensure_ascii=False) + "\n")
+                    kept += 1
+                except:
+                    fout.write(line)
+                    kept += 1
+        audit_record(actor="admin", action="delete_participant",
+                     target_id=participant_id, notes=f"removed {removed} entries; backup at {backup}")
+        return jsonify({"ok": True, "removed": removed, "backup": backup})
+    except Exception as e:
+        if os.path.exists(backup) and not os.path.exists(DATA_LOG):
+            os.rename(backup, DATA_LOG)
+        return jsonify({"error": "Failed delete", "details": str(e)}), 500
+
+
+# --------------------------
+#  METADATA ENDPOINT (HTML + JSON)
+# --------------------------
+
+@app.route('/metadata', methods=['GET'])
+def metadata():
+    """Expose compliance and model metadata (HTML for browser, JSON for API)."""
+    dpiapath = os.path.join(BASE_DIR, "DPIA.md")
+    modelpath = os.path.join(BASE_DIR, "model_card.md")
+
+    def safe_read(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read(2000)
+        except FileNotFoundError:
+            return "N/A"
+
+    dpia_text = safe_read(dpiapath)
+    model_text = safe_read(modelpath)
+
+    # If the user requested JSON explicitly
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify({
+            "project": "Cognitive-Behavioral Analytics MVP",
+            "dpiaversion": "1.0",
+            "model_version": "1.0",
+            "consent_version": CONSENT_VERSION,
+            "contact": "jirehkenneth2001@gmail.com",
+            "maintainer": "Jireh Kenneth-Usen",
+            "location": "Lagos, Nigeria",
+            "license": "Internal research / educational prototype",
+            "last_review": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "dpia_excerpt": dpia_text[:300],
+            "modelcard_excerpt": model_text[:300]
+        })
+
+    # Otherwise, return a pretty HTML view
+    html = f"""
+    <html>
+    <head>
+        <title>System Metadata – Compliance Overview</title>
+        <link rel="stylesheet" href="/static/style.css">
+        <style>
+            body {{ background:#f8f9fa; color:#222; font-family:Inter, sans-serif; padding:2rem; }}
+            h1 {{ color:#d6336c; }}
+            pre {{ background:#fff; padding:1rem; border-radius:0.5rem; overflow-x:auto; }}
+            .card {{ background:white; box-shadow:0 2px 6px rgba(0,0,0,0.1); border-radius:1rem; padding:1.5rem; margin-bottom:2rem; }}
+            .meta-title {{ color:#444; font-size:1.2rem; font-weight:600; margin-bottom:0.5rem; }}
+        </style>
+    </head>
+    <body>
+        <h1>Compliance & Model Metadata</h1>
+
+        <div class="card">
+            <div class="meta-title">Project:</div>
+            Cognitive-Behavioral Analytics MVP<br>
+            <b>Maintainer:</b> Jireh Kenneth-Usen<br>
+            <b>Contact:</b> jirehkenneth2001@gmail.com<br>
+            <b>Consent Version:</b> {CONSENT_VERSION}<br>
+            <b>DPIA Version:</b> 1.0<br>
+            <b>Model Version:</b> 1.0<br>
+            <b>Last Review:</b> {datetime.datetime.now().strftime("%Y-%m-%d")}<br>
+        </div>
+
+        <div class="card">
+            <div class="meta-title">DPIA Excerpt</div>
+            <pre>{dpia_text[:600]}</pre>
+        </div>
+
+        <div class="card">
+            <div class="meta-title">Model Card Excerpt</div>
+            <pre>{model_text[:600]}</pre>
+        </div>
+
+        <p style="text-align:center; color:#888;">© 2025 Jireh Kenneth-Usen – Internal Research Prototype</p>
+    </body>
+    </html>
+    """
+
+    return html
+
+# --------------------------
+#  RUN SERVER
+# --------------------------
+
+if __name__ == "__main__":
+    print("✅ Flask app running on http://127.0.0.1:5000")
+    print("Admin token set:", bool(get_admin_token()))
+    app.run(host="127.0.0.1", port=5000, debug=False)
+

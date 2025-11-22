@@ -1,0 +1,231 @@
+[
+  {
+    "event_type": "task_response",
+    "participant_id": "user0",
+    "task_id": "task_0",
+    "metrics": {
+      "response_time_ms": 1981,
+      "accuracy": 0,
+      "retries": 1,
+      "hint_used": false,
+      "cursor_idle_ms": 191
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 1
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:12.028045Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user1",
+    "task_id": "task_1",
+    "metrics": {
+      "response_time_ms": 2910,
+      "accuracy": 0,
+      "retries": 2,
+      "hint_used": false,
+      "cursor_idle_ms": 451
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 2
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:12.184622Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user2",
+    "task_id": "task_2",
+    "metrics": {
+      "response_time_ms": 2277,
+      "accuracy": 1,
+      "retries": 0,
+      "hint_used": false,
+      "cursor_idle_ms": 830
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 3
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:12.351427Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user0",
+    "task_id": "task_3",
+    "metrics": {
+      "response_time_ms": 975,
+      "accuracy": 0,
+      "retries": 0,
+      "hint_used": true,
+      "cursor_idle_ms": 711
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 1
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:12.518643Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user1",
+    "task_id": "task_4",
+    "metrics": {
+      "response_time_ms": 1293,
+      "accuracy": 1,
+      "retries": 2,
+      "hint_used": true,
+      "cursor_idle_ms": 867
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 2
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:12.689889Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user2",
+    "task_id": "task_0",
+    "metrics": {
+      "response_time_ms": 2329,
+      "accuracy": 0,
+      "retries": 0,
+      "hint_used": false,
+      "cursor_idle_ms": 706
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 3
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:12.858846Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user0",
+    "task_id": "task_1",
+    "metrics": {
+      "response_time_ms": 2673,
+      "accuracy": 0,
+      "retries": 1,
+      "hint_used": false,
+      "cursor_idle_ms": 780
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 1
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:13.025739Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user1",
+    "task_id": "task_2",
+    "metrics": {
+      "response_time_ms": 2359,
+      "accuracy": 0,
+      "retries": 1,
+      "hint_used": false,
+      "cursor_idle_ms": 435
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 2
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:13.192434Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user2",
+    "task_id": "task_3",
+    "metrics": {
+      "response_time_ms": 1498,
+      "accuracy": 1,
+      "retries": 2,
+      "hint_used": false,
+      "cursor_idle_ms": 989
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 3
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:13.367074Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "user0",
+    "task_id": "task_4",
+    "metrics": {
+      "response_time_ms": 888,
+      "accuracy": 0,
+      "retries": 0,
+      "hint_used": true,
+      "cursor_idle_ms": 194
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 1
+    },
+    "consent_version": "1.0",
+    "timestamp": "2025-10-30T23:10:13.529051Z"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "sandbox_user",
+    "task_id": "pattern_test",
+    "timestamp": "2025-10-31T00:13:50.483571Z",
+    "metrics": {
+      "response_time_ms": 1200,
+      "accuracy": 1
+    },
+    "session_context": {
+      "device": "laptop",
+      "difficulty_level": 1
+    },
+    "consent_version": "1.0"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "test_user_1",
+    "task_id": "pattern_001",
+    "timestamp": "2025-10-31T22:01:24.097746Z",
+    "metrics": {
+      "response_time_ms": 0,
+      "accuracy": 1,
+      "retries": 0,
+      "hint_used": false
+    },
+    "session_context": {
+      "category": "pattern_recognition",
+      "difficulty": 1
+    },
+    "consent_version": "1.0"
+  },
+  {
+    "event_type": "task_response",
+    "participant_id": "test_user_1",
+    "task_id": "pattern_001",
+    "timestamp": "2025-10-31T22:31:14.662568Z",
+    "metrics": {
+      "response_time_ms": 1200,
+      "accuracy": 1,
+      "retries": 0,
+      "hint_used": false
+    },
+    "session_context": {
+      "category": "pattern_recognition",
+      "difficulty": 1
+    },
+    "consent_version": "1.0"
+  }
+]

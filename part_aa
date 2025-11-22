@@ -1,0 +1,500 @@
+from flask import Flask, render_template, request, jsonify, make_response, g, session
+import uuid, hashlib, json, datetime, os
+from functools import wraps
+
+# Security imports
+import re
+import secrets
+import hmac
+from flask import abort
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+# --- QUICK HARDENING CONFIG (Phase 4 Pre-Upgrades) ---
+LOG_MAX_BYTES = int(os.environ.get("LOG_MAX_BYTES", 512 * 1024))  # 512KB
+LOG_BACKUPS   = int(os.environ.get("LOG_BACKUPS", 5))
+LOG_HMAC_KEY  = os.environ.get("LOG_HMAC_KEY", "")  # set to random hex for tamper-evidence
+
+ALLOWED_ORIGIN_HOST = os.environ.get("ALLOWED_ORIGIN_HOST", "127.0.0.1")  # or domain
+HONEYPOT_FIELD      = os.environ.get("HONEYPOT_FIELD", "hp_website")
+
+
+# Import analytics/behavior tracking functions
+from project.analyze_events import (
+    save_session_result,
+    compute_behavioral_metrics,
+    compute_cognitive_metrics,
+    aggregate_metrics,
+    export_all,
+    erase_participant,
+)
+
+
+# ---------------------------
+# Flask + Security Setup
+# ---------------------------
+app = Flask(__name__)
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=os.environ.get("LIMITER_STORAGE_URI","memory://"), 
+    default_limits=["120 per minute"],
+    headers_enabled=True
+)
+limiter.init_app(app)
+
+# ----------------------------
+# Admin authentication decorator
+# ----------------------------
+from functools import wraps
+import os
+from flask import request, jsonify, redirect, make_response, render_template
+
+def admin_required(f):
+    """Decorator to protect sensitive routes using rotating admin token."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # helper that returns the currently configured admin token
+        token_cfg = get_admin_token()   # make sure get_admin_token() exists
+        if not token_cfg:
+            return jsonify({"error": "Admin token not configured"}), 500
+
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            provided = auth.split(" ", 1)[1].strip()
+        else:
+            provided = (
+                request.headers.get("X-ADMIN-TOKEN", "").strip()
+                or auth.strip()
+                or request.cookies.get("admin_session", "").strip()
+            )
+
+        if provided != token_cfg:
+            try:
+                audit_record(
+                    action="admin_access_denied",
+                    actor="unknown",
+                    subject=request.path,
+                    status="denied",
+                    extra={"ip": request.remote_addr}
+                )
+            except Exception:
+                pass
+            return jsonify({"error": "Unauthorized"}), 401
+
+        return f(*args, **kwargs)
+    return decorated
+
+# ---- Minimal Admin login page (Phase 4 helper) ----
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    """
+    Minimal admin login:
+      GET  -> render admin_login.html
+      POST -> validate token (form), set secure cookie, redirect to dashboard
+    """
+    if request.method == "GET":
+        return render_template("admin_login.html")
+
+    # POST: validate posted token
+    token_submitted = request.form.get("token", "").strip()
+    real_token = get_admin_token()
+    if not real_token:
+        return "Admin token not configured", 500
+    if token_submitted != real_token:
+        return render_template("admin_login.html", error="Invalid token")
+
+    # correct -> set cookie and redirect to dashboard
+    resp = make_response(redirect("/admin/dashboard"))
+    resp.set_cookie("admin_session", token_submitted, httponly=True, samesite="Lax", max_age=60*60)
+    return resp
+
+
+# -------------------------------
+# Dynamic honeypot cookie signing
+# -------------------------------
+import hmac
+import hashlib
+import secrets
+from typing import Optional
+
+# HMAC key (set in environment). IMPORTANT: set a long random secret in env before deploy.
+HMAC_KEY = os.environ.get("HMAC_KEY")  # e.g. 64 hex chars from `secrets.token_hex(32)`
+if not HMAC_KEY:
+    # fallback for local dev only - strongly prefer setting HMAC_KEY in env
+    HMAC_KEY = secrets.token_hex(32)
+    # (You should export a proper HMAC_KEY in your shell/environment instead of relying on this.)
+
+def generate_honeypot_field() -> str:
+    """Return a short random honeypot field name, e.g. 'hp_ab12cd34'."""
+    return "hp_" + secrets.token_hex(4)
+
+def sign_val(val: str) -> str:
+    """Return hex HMAC-SHA256 of val using HMAC_KEY."""
+    key = HMAC_KEY.encode("utf-8")
+    mac = hmac.new(key, val.encode("utf-8"), hashlib.sha256).hexdigest()
+    return mac
+
+def verify_val(val: str, sig: str) -> bool:
+    """Verify HMAC signature constant-time; return True if match."""
+    key = HMAC_KEY.encode("utf-8")
+    expected = hmac.new(key, val.encode("utf-8"), hashlib.sha256).hexdigest()
+    # use hmac.compare_digest for constant-time comparison
+    return hmac.compare_digest(expected, sig)
+
+@app.before_request
+def rotate_honeypot_cookie():
+    """
+    Ensure a signed hp_field cookie exists on each session.
+    Cookie format stored: "<field_name>|<sig>"
+    - cookie is readable by JS (NOT HttpOnly) because client-side rotation reads it.
+    - server verifies signature on use (see bot_tripwire update below).
+    """
+    try:
+        raw = request.cookies.get("hp_field", "")
+        valid_name: Optional[str] = None
+        if raw and "|" in raw:
+            name, sig = raw.split("|", 1)
+            if name.startswith("hp_") and verify_val(name, sig):
+                valid_name = name
+
+        # If cookie missing or invalid -> generate new signed cookie
+        if not valid_name:
+            new_name = generate_honeypot_field()
+            sig = sign_val(new_name)
+            cookie_value = f"{new_name}|{sig}"
+            # store for after_request to attach to outgoing response
+            # don't directly call make_response here (Flask catch-alls make it messy)
+            from flask import g
+            g.hp_cookie_to_set = cookie_value
+    except Exception:
+        # never block user flow if sign/rotate fails
+        pass
+
+
+# -------------------------------
+# Dynamic Honeypot Field Helper (Upgrade #4)
+# -------------------------------
+
+import secrets
+
+def generate_honeypot_field():
+    """Generate a random honeypot field name."""
+    return "hp_" + secrets.token_hex(4)
+
+@app.before_request
+def rotate_honeypot_cookie():
+    """
+    Rotate honeypot field name occasionally for better bot resistance.
+    Stores field name in user cookie 'hp_field' if missing.
+    """
+    if not request.cookies.get("hp_field"):
+        from flask import g
+        g.hp_cookie_to_get = generate_honeypot_field()
+
+@app.after_request
+def apply_honeypot_cookie(resp):
+    """
+    If rotate_honeypot_cookie scheduled a cookie (saved on g.hp_cookie_to_set),
+    attach it to the response here so every response carries the cookie.
+    """
+    from flask import g
+    try:
+        if hasattr(g, "hp_cookie_to_set") and g.hp_cookie_to_set:
+            # IMPORTANT: the cookie must be readable by client-side JS so we do NOT set HttpOnly=True
+            resp.set_cookie(
+                "hp_field",
+                g.hp_cookie_to_set,
+                max_age=60 * 60 * 24,   # 1 day
+                httponly=False,         # JS needs to read it to set hidden input name
+                samesite="Lax",
+                path="/"
+            )
+    except Exception:
+        # never block normal flow if cookie attach fails
+        pass
+
+    return resp
+
+# ----------------------------
+# Rate Limit JSON Handler (Upgrade #1)
+# -----------------------------
+from flask_limiter.errors import RateLimitExceeded
+
+@app.errorhandler(RateLimitExceeded)
+def handle_rate_limit(e):
+    retry = getattr(e, "reset_in", 1)
+    resp = jsonify({"error": "rate_limited", "retry_after": retry})
+    resp.status_code = 429
+    resp.headers["Retry-After"] = str(retry)
+    return resp
+
+# -----------------------------
+# Host Allow-List Siteguard (Upgrade #2)
+# -----------------------------
+@app.before_request
+def host_siteguard():
+    # If allow-list not configured, skip
+    if not ALLOWED_ORIGIN_HOST:
+        return
+
+    # Extract host portion without port
+    host = (request.host or "").split(":")[0]
+
+    # If mismatched, block + audit
+    if host and host != ALLOWED_ORIGIN_HOST:
+        audit_record(
+            action="host_block",
+            status="denied",
+            extra={"seen_host": host, "path": request.path}
+        )
+        return jsonify({"error": "host_not_allowed"}), 403
+
+
+# ------------------------------------------------------------------
+# Honeypot + Bot Tripwire (Upgrade #3) - signed cookie-aware version
+# ------------------------------------------------------------------
+def bot_tripwire():
+    """
+    Return Flask response to block if bot is suspected; otherwise return None.
+    Uses signed hp_field cookie of form: "<field_name>|<sig>" where sig = HMAC(name).
+    Falls back to env HONEYPOT_FIELD if cookie missing/invalid.
+    """
+    honeypot_val = None
+    hp_name = None
+
+    # --- Read and verify signed cookie if present ---
+    try:
+        raw = request.cookies.get("hp_field", "")
+        if raw and "|" in raw:
+            name, sig = raw.split("|", 1)
+            # accept only names that look like our hp_ prefix and verify signature
+            if name.startswith("hp_") and verify_val(name, sig):
+                hp_name = name
+    except Exception:
+        # don't break request flow on verification errors
+        hp_name = None
+
+    # Fallback to env/default configured name
+    if not hp_name:
+        hp_name = os.environ.get("HONEYPOT_FIELD", "hp_website")
+
+    # --- Extract submitted value from possible input types ---
+    if request.is_json:
+        body = request.get_json(silent=True) or {}
+        honeypot_val = (body.get(hp_name) or "").strip()
+    else:
+        honeypot_val = (request.form.get(hp_name) or "").strip()
+
+    # check querystring as well (rare, but cover all)
+    if not honeypot_val:
+        honeypot_val = (request.args.get(hp_name) or "").strip()
+
+    # If honeypot field is filled -> suspicious -> log + block
+    if honeypot_val:
+        try:
+            audit_record(
+                action="honeypot_trigger",
+                actor="unknown",
+                subject=request.path,
+                status="denied",
+                extra={"hp_field": hp_name, "ip": request.remote_addr}
+            )
+        except Exception:
+            pass
+
+        return jsonify({"error": "bot_detected"}), 400
+
+    return None
+
+# ------------------------------
+# Fake / Decoy Endpoints + Snare
+# ------------------------------
+from flask import render_template, request, jsonify, make_response
+
+@app.route("/decoy", methods=["GET"])
+def decoy_page():
+    """
+    Public decoy page that looks like a sensitive endpoint.
+    Server provides hp_field template var (cookie preferred).
+    """
+    hp_field = request.cookies.get("hp_field") or os.environ.get("HONEYPOT_FIELD", "hp_website")
+    return render_template("decoy.html", hp_field=hp_field)
+
+@app.route("/decoy_submit", methods=["POST"])
+def decoy_submit():
+    """
+    Accept form or JSON to the decoy. Always log a decoy_hit audit line
+    and show a benign message. If bot_tripwire already blocked, return that.
+    """
+    # block early if bot_tripwire detects badness
+    trip = bot_tripwire()
+    if trip:
+        return trip
+
+    # gather submitted payload (JSON or form)
+    try:
+        body = request.get_json(silent=True) or {}
+    except Exception:
+        body = {}
+
+    form = request.form or {}
+
+    # build shallow field map, redact obvious secrets
+    fields = {}
+    # combine JSON and form (form takes precedence if same key)
+    combined = {}
+    combined.update(body)
+    combined.update(form)
+    for k, v in combined.items():
+        key = str(k)
+        # redact if looks like a secret/password
+        if "password" in key.lower() or "secret" in key.lower() or "token" in key.lower():
+            fields[key] = "<redacted>"
+        else:
+            fields[key] = v if isinstance(v, str) else str(v)
+
+    # audit the decoy hit (don't let failures trip user flow)
+    try:
+        audit_record(
+            action="decoy_hit",
+            actor="unknown",
+            subject=request.path,
+            status="seen",
+            extra={"ip": request.remote_addr, "via": "form_or_json", "fields": fields},
+        )
+    except Exception:
+        pass
+
+    # Optionally return the snare (decoy_thanks) which includes the
+    # client-side jitter/snare JS you already added.
+    return render_template("decoy_thanks.html"), 200
+
+@app.route("/snare", methods=["POST"])
+def snare_endpoint():
+    """
+    Lightweight API snare used by decoy JS (and test curl). Collects simple
+    client-side signals (UA, small payload) and writes an audit log entry.
+
+    This version:
+    - Accepts JSON or form-encoded body
+    - Redacts common sensitive keys (password, token, secret)
+    - Records ip, user-agent, a trimmed header snapshot and the payload
+    - Returns {"ok": True} on success
+    """
+    # Accept JSON (preferred) or form data
+    data = request.get_json(silent=True) or {}
+    if not data and request.form:
+        # convert form MultiDict -> normal dict
+        data = {k: request.form.get(k) for k in request.form.keys()}
+
+    try:
+        # shallow redact of sensitive field values
+        def redact_val(k, v):
+            key = k.lower()
+            if any(s in key for s in ("password", "secret", "token", "passwd", "pwd", "authorization")):
+                return "<redacted>"
+            return v
+
+        payload = {k: redact_val(k, v) for k, v in (data.items() if isinstance(data, dict) else [])}
+
+        # small headers snapshot (avoid logging full headers)
+        hdrs = {}
+        for h in ("User-Agent", "Referer", "X-Forwarded-For"):
+            val = request.headers.get(h)
+            if val:
+                hdrs[h] = val if len(val) < 1000 else val[:1000] + "...(truncated)"
+
+        extra = {
+            "ip": request.remote_addr,
+            "ua": request.headers.get("User-Agent"),
+            "headers": hdrs,
+            "payload": payload
+        }
+
+        # audit_record is your existing helper that appends to the audit log.
+        # Make sure it accepts these kwargs (actor/subject/status/extra).
+        audit_record(
+            action="snare_trigger",
+            actor="unknown",
+            subject=request.path,
+            status="collected",
+            extra=extra
+        )
+    except Exception:
+        # we don't want snare errors to break the site — fail silently
+        pass
+
+    return jsonify({"ok": True}), 200
+
+
+@app.route("/fake-login", methods=["GET", "POST"])
+def fake_login():
+    """
+    A deceptive login page (non-functional). Logs any attempts.
+    """
+    if request.method == "POST":
+        # log attempt but don't authenticate
+        username = request.form.get("username", "")
+        # purposely don't store raw password - only indicator length/exists
+        attempted = {
+            "username": username,
+            "password_provided": bool(request.form.get("password"))
+        }
+        try:
+            audit_record(
+                action="fake_login_attempt",
+                actor="unknown",
+                subject=request.path,
+                status="attempted",
+                extra={"ip": request.remote_addr, "attempt": attempted}
+            )
+        except Exception:
+            pass
+
+        # show a benign "processing" page to hold the actor
+        return render_template("fake_login_wait.html"), 200
+
+    # GET: show the fake login form
+    hp_field = request.cookies.get("hp_field") or os.environ.get("HONEYPOT_FIELD", "hp_website")
+    return render_template("fake_login.html", hp_field=hp_field)
+
+
+# ---- Admin Metrics Endpoint (Phase 4 - D3) ----
+@app.route("/admin/metrics/<participant_id>", methods=["GET"])
+@admin_required
+def admin_metrics(participant_id):
+    """
+    Compute behavioral + cognitive metrics for a participant.
+    """
+    try:
+        # Collect all records for this participant
+        records = _collect_participant_records(participant_id)
+        if not records:
+            return jsonify({"ok": False, "error": "no_records"}), 404
+
+        # Extract only data_log entries (the puzzle/task results)
+        event_payloads = []
+        for r in records:
+            obj = r.get("record", {})
+            if obj.get("action") == "save_session_result":
+                payload = obj.get("payload", {})
+                event_payloads.append(payload)
+
+        # No puzzle/task events?
+        if not event_payloads:
+            return jsonify({"ok": False, "error": "no_event_payloads"}), 404
+
+        # Run your analysis stack
+        metrics = aggregate_metrics(event_payloads)
+
+        return jsonify({
+            "ok": True,
+            "participant_id": participant_id,
+            "metrics": metrics,
+            "events_used": len(event_payloads),
+        }), 200
+
+    except Exception as e:
+        try:
