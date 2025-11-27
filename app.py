@@ -311,65 +311,20 @@ def bot_tripwire():
 # ------------------------------
 # Fake / Decoy Endpoints + Snare
 # ------------------------------
-from flask import render_template, request, jsonify, make_response
+# -------------------------
+# LEGACY ROUTE: moved to blueprint
+# Old handler moved to: project/app/routes/__init__.py
+#
+# Legacy shim so `from app import decoy_submit` still works.
+try:
+    from project.app.routes import decoy_submit as new_decoy_submit
+    decoy_submit = new_decoy_submit
+except Exception:
+    # leave a harmless placeholder if import fails during transitional edits
+    def decoy_submit(*a, **kw):
+        raise RuntimeError("decoy_submit handler not available (moved to project.app.routes)")
+# -------------------------
 
-@app.route("/decoy", methods=["GET"])
-def decoy_page():
-    """
-    Public decoy page that looks like a sensitive endpoint.
-    Server provides hp_field template var (cookie preferred).
-    """
-    hp_field = request.cookies.get("hp_field") or os.environ.get("HONEYPOT_FIELD", "hp_website")
-    return render_template("decoy.html", hp_field=hp_field)
-
-@app.route("/decoy_submit", methods=["POST"])
-def decoy_submit():
-    """
-    Accept form or JSON to the decoy. Always log a decoy_hit audit line
-    and show a benign message. If bot_tripwire already blocked, return that.
-    """
-    # block early if bot_tripwire detects badness
-    trip = bot_tripwire()
-    if trip:
-        return trip
-
-    # gather submitted payload (JSON or form)
-    try:
-        body = request.get_json(silent=True) or {}
-    except Exception:
-        body = {}
-
-    form = request.form or {}
-
-    # build shallow field map, redact obvious secrets
-    fields = {}
-    # combine JSON and form (form takes precedence if same key)
-    combined = {}
-    combined.update(body)
-    combined.update(form)
-    for k, v in combined.items():
-        key = str(k)
-        # redact if looks like a secret/password
-        if "password" in key.lower() or "secret" in key.lower() or "token" in key.lower():
-            fields[key] = "<redacted>"
-        else:
-            fields[key] = v if isinstance(v, str) else str(v)
-
-    # audit the decoy hit (don't let failures trip user flow)
-    try:
-        audit_record(
-            action="decoy_hit",
-            actor="unknown",
-            subject=request.path,
-            status="seen",
-            extra={"ip": request.remote_addr, "via": "form_or_json", "fields": fields},
-        )
-    except Exception:
-        pass
-
-    # Optionally return the snare (decoy_thanks) which includes the
-    # client-side jitter/snare JS you already added.
-    return render_template("decoy_thanks.html"), 200
 
 @app.route("/snare", methods=["POST"])
 def snare_endpoint():
