@@ -13,6 +13,12 @@ from project.app.helpers import audit_record, get_admin_token, DATA_LOG, generat
 
 # bot detection stub
 from project.app.security import bot_tripwire
+from project.app.services.validators import (
+    validate_behavioral_session,
+    validate_cognitive_session,
+)
+from project.app.services.metrics import compute_behavioral_metrics
+from project.app.services.sessions import save_session_result
 
 # limiter import (adjust if you keep a different layout)
 try:
@@ -278,86 +284,6 @@ def export_dashboard():
 
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
-
-# -------------------------------
-# Local validation + metrics helpers
-# -------------------------------
-
-def validate_behavioral_session(session: dict):
-    """
-    Minimal validation for a behavioral session.
-    Expects:
-      - participant_id (str)
-      - task_id (str)
-      - events (list)
-    """
-    if not isinstance(session, dict):
-        return False, "Session must be a JSON object"
-
-    required = ["participant_id", "task_id", "events"]
-    for key in required:
-        if key not in session:
-            return False, f"Missing required field: {key}"
-
-    if not isinstance(session["events"], list):
-        return False, "events must be a list"
-
-    return True, "ok"
-
-
-def validate_cognitive_session(session: dict):
-    """
-    Minimal validation for a cognitive session.
-    Expects:
-      - participant_id (str)
-      - task_id (str)
-      - modules (list)
-    """
-    if not isinstance(session, dict):
-        return False, "Session must be a JSON object"
-
-    required = ["participant_id", "task_id", "modules"]
-    for key in required:
-        if key not in session:
-            return False, f"Missing required field: {key}"
-
-    if not isinstance(session["modules"], list):
-        return False, "modules must be a list"
-
-    return True, "ok"
-
-
-def save_session_result(session: dict):
-    """
-    Append the session to DATA_LOG as a JSON line.
-    Adds a timestamp if missing. Returns the saved object.
-    """
-    if not isinstance(session, dict):
-        session = {"raw": session}
-
-    if "ts" not in session:
-        session["ts"] = time.time()
-
-    os.makedirs("logs", exist_ok=True)
-    with open(DATA_LOG, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(session) + "\n")
-
-    return session
-
-
-def compute_behavioral_metrics(session: dict):
-    """
-    Very simple behavioral metrics placeholder.
-    For now:
-      - event_count: number of events
-    """
-    events = session.get("events") or []
-    if not isinstance(events, list):
-        events = []
-
-    return {
-        "event_count": len(events),
-    }
 
 @main.route("/start_session", methods=["POST"])
 @limiter.limit("10 per minute")
