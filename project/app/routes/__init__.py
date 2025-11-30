@@ -9,7 +9,11 @@ import tempfile
 import time
 
 # prefer helpers module for audit_record / get_admin_token
-from project.app.helpers import audit_record, get_admin_token
+from project.app.helpers import audit_record, get_admin_token, DATA_LOG, generate_participant_id
+
+# bot detection stub
+from project.app.security import bot_tripwire
+
 # limiter import (adjust if you keep a different layout)
 try:
     from project.app.extensions.limiter import limiter
@@ -194,4 +198,289 @@ def decoy_submit():
 
     # Return the decoy thank-you page (same as old behavior)
     return render_template("decoy_thanks.html"), 200
+
+# -------------------------
+# Public API routes restored from old app.py
+# -------------------------
+
+@main.route("/status", methods=["GET"])
+def status():
+    return jsonify({"status": "ok", "version": "0.1.0"}), 200
+
+
+@main.route("/erase/<participant_id>", methods=["DELETE"])
+def erase_participant(participant_id):
+    """Public erase endpoint (non-admin). Best-effort anonymization."""
+    path = "logs/data_log.jsonl"
+    if not os.path.exists(path):
+        return jsonify({"ok": False, "error": "no_data_log"}), 404
+
+    tmp_path = path + ".tmp"
+    repl = f"anonymized:{int(time.time()*1000)}"
+    changed = 0
+
+    try:
+        with open(path, "r", encoding="utf-8") as inf, open(tmp_path, "w", encoding="utf-8") as outf:
+            for line in inf:
+                try:
+                    obj = json.loads(line)
+                except Exception:
+                    outf.write(line)
+                    continue
+
+                if obj.get("participant_id") == participant_id:
+                    obj["participant_id"] = repl
+                    changed += 1
+
+                outf.write(json.dumps(obj) + "\n")
+
+        os.replace(tmp_path, path)
+        return jsonify({"ok": True, "participant_id": participant_id, "replacement": repl, "changed_lines": changed}), 200
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@main.route("/export/<participant_id>", methods=["GET"])
+def export_participant(participant_id):
+    """Public export endpoint."""
+    records = []
+
+    try:
+        for fname in glob.glob("logs/*.jsonl"):
+            with open(fname, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    try:
+                        obj = json.loads(line)
+                    except Exception:
+                        continue
+
+                    if obj.get("participant_id") == participant_id:
+                        records.append({"file": fname, "record": obj})
+
+        return jsonify({"ok": True, "participant_id": participant_id, "matches": len(records), "records": records}), 200
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@main.route("/export/dashboard", methods=["GET"])
+def export_dashboard():
+    """Simplified dashboard export."""
+    try:
+        data = {"logs": {}}
+
+        for fname in glob.glob("logs/*.jsonl"):
+            with open(fname, "r", encoding="utf-8") as fh:
+                data["logs"][fname] = [json.loads(line) for line in fh if line.strip()]
+
+        return jsonify({"ok": True, "data": data}), 200
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+# -------------------------------
+# Local validation + metrics helpers
+# -------------------------------
+
+def validate_behavioral_session(session: dict):
+    """
+    Minimal validation for a behavioral session.
+    Expects:
+      - participant_id (str)
+      - task_id (str)
+      - events (list)
+    """
+    if not isinstance(session, dict):
+        return False, "Session must be a JSON object"
+
+    required = ["participant_id", "task_id", "events"]
+    for key in required:
+        if key not in session:
+            return False, f"Missing required field: {key}"
+
+    if not isinstance(session["events"], list):
+        return False, "events must be a list"
+
+    return True, "ok"
+
+
+def validate_cognitive_session(session: dict):
+    """
+    Minimal validation for a cognitive session.
+    Expects:
+      - participant_id (str)
+      - task_id (str)
+      - modules (list)
+    """
+    if not isinstance(session, dict):
+        return False, "Session must be a JSON object"
+
+    required = ["participant_id", "task_id", "modules"]
+    for key in required:
+        if key not in session:
+            return False, f"Missing required field: {key}"
+
+    if not isinstance(session["modules"], list):
+        return False, "modules must be a list"
+
+    return True, "ok"
+
+
+def save_session_result(session: dict):
+    """
+    Append the session to DATA_LOG as a JSON line.
+    Adds a timestamp if missing. Returns the saved object.
+    """
+    if not isinstance(session, dict):
+        session = {"raw": session}
+
+    if "ts" not in session:
+        session["ts"] = time.time()
+
+    os.makedirs("logs", exist_ok=True)
+    with open(DATA_LOG, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(session) + "\n")
+
+    return session
+
+
+def compute_behavioral_metrics(session: dict):
+    """
+    Very simple behavioral metrics placeholder.
+    For now:
+      - event_count: number of events
+    """
+    events = session.get("events") or []
+    if not isinstance(events, list):
+        events = []
+
+    return {
+        "event_count": len(events),
+    }
+
+@main.route("/start_session", methods=["POST"])
+@limiter.limit("10 per minute")
+def start_session():
+    """
+    Create a new participant session.
+
+    - Generates a participant_id if one is not provided.
+    - Logs a 'session_start' event into DATA_LOG.
+    - Returns the participant_id to the client.
+    """
+    body = request.get_json(silent=True) or {}
+
+    participant_id = body.get("participant_id") or generate_participant_id()
+    consent_version = body.get("consent_version")
+    source = body.get("source", "unknown")
+
+    session_record = {
+        "ts": time.time(),
+        "event_type": "session_start",
+        "participant_id": participant_id,
+        "consent_version": consent_version,
+        "source": source,
+        "meta": body,
+    }
+
+    try:
+        os.makedirs("logs", exist_ok=True)
+        with open(DATA_LOG, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(session_record) + "\n")
+
+        try:
+            audit_record(
+                action="session_start",
+                actor=f"participant:{participant_id}",
+                subject=None,
+                status="ok",
+                extra={"source": source, "consent_version": consent_version},
+            )
+        except Exception:
+            pass
+
+        return jsonify(
+            {
+                "ok": True,
+                "participant_id": participant_id,
+            }
+        ), 201
+
+    except Exception as e:
+        try:
+            audit_record(
+                action="session_start_error",
+                actor="unknown",
+                subject=None,
+                status="error",
+                extra={"error": str(e)},
+            )
+        except Exception:
+            pass
+
+        return jsonify({"ok": False, "error": "internal_error"}), 500
+
+
+@main.route("/submit_result", methods=["POST"])
+@limiter.limit("20 per minute")
+def submit_result():
+    trip = bot_tripwire()
+    if trip:
+        return trip
+
+    """
+    Accepts JSON body with a session object.
+    Automatically detects type (behavioral or cognitive)
+    and computes the correct metrics.
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    session = request.get_json()
+
+    # -------------------------------------------
+    # VALIDATION LAYER: reject malformed sessions
+    # -------------------------------------------
+    if isinstance(session, dict) and "events" in session:
+        ok, msg = validate_behavioral_session(session)
+        if not ok:
+            return jsonify({"error": msg}), 400
+
+    elif isinstance(session, dict) and "modules" in session:
+        ok, msg = validate_cognitive_session(session)
+        if not ok:
+            return jsonify({"error": msg}), 400
+
+    # -------------------------------------------
+
+    saved = save_session_result(session)
+
+    # detect session type and compute metrics
+    if isinstance(saved, dict) and "events" in saved:
+        metrics = compute_behavioral_metrics(saved)
+        session_type = "behavioral"
+
+    elif isinstance(saved, dict) and "modules" in saved:
+        # TODO: add cognitive metrics when those are defined
+        metrics = {"note": "Cognitive session; metrics TBD"}
+        session_type = "cognitive"
+
+    else:
+        metrics = {"note": "Unknown data type; no metrics computed"}
+        session_type = "unknown"
+
+    # ✅ AUDIT LOG HERE (updated to new helper signature)
+    try:
+        audit_record(
+            action="submit_result",
+            actor=f"participant:{saved.get('participant_id', 'unknown')}",
+            subject=saved.get("task_id"),
+            status="ok",
+            extra={"session_type": session_type},
+        )
+    except Exception:
+        pass
+
+    return jsonify({"saved": saved, "metrics": metrics}), 201
 
