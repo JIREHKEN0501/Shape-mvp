@@ -38,5 +38,9 @@ def create_app(config_override: dict = None):
     # -------------------------------
     app.register_blueprint(main_bp)
 
+    # NEW admin blueprint
+    from project.app.routes.admin import admin as admin_bp
+    app.register_blueprint(admin_bp)
+
     return app
 
