@@ -24,6 +24,7 @@ from project.app.services.analytics import (
     generate_participant_summary,
     generate_global_summary,
 )
+from project.app.services.adaptive import suggest_next_task
 
 
 # limiter import (adjust if you keep a different layout)
@@ -175,6 +176,19 @@ def task_detail(task_id):
     if not task:
         return jsonify({"ok": False, "error": "task_not_found"}), 404
     return jsonify({"ok": True, "task": task}), 200
+
+
+@main.route("/tasks/next/<participant_id>", methods=["GET"])
+def tasks_next(participant_id):
+    """
+    Adaptive task suggestion endpoint.
+
+    Uses the participant's past performance (if any)
+    to pick an appropriate next task.
+    """
+    result = suggest_next_task(participant_id)
+    status = 200 if result.get("ok") else 404
+    return jsonify(result), status
 
 
 @main.route("/metrics/summary/<participant_id>", methods=["GET"])
