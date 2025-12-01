@@ -17,8 +17,14 @@ from project.app.services.validators import (
     validate_behavioral_session,
     validate_cognitive_session,
 )
-from project.app.services.metrics import compute_behavioral_metrics
+from project.app.services.metrics import compute_behavioral_metrics, evaluate_task_answer
 from project.app.services.sessions import save_session_result
+from project.app.services.tasks import list_tasks, get_task
+from project.app.services.analytics import (
+    generate_participant_summary,
+    generate_global_summary,
+)
+
 
 # limiter import (adjust if you keep a different layout)
 try:
@@ -150,6 +156,47 @@ def export_dashboard():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+
+@main.route("/tasks", methods=["GET"])
+def tasks_index():
+    """
+    Return the full task catalog (sanitized) as JSON.
+    """
+    tasks = list_tasks()
+    return jsonify({"ok": True, "count": len(tasks), "tasks": tasks}), 200
+
+
+@main.route("/tasks/<task_id>", methods=["GET"])
+def task_detail(task_id):
+    """
+    Return a single task by id, or 404 if not found.
+    """
+    task = get_task(task_id)
+    if not task:
+        return jsonify({"ok": False, "error": "task_not_found"}), 404
+    return jsonify({"ok": True, "task": task}), 200
+
+
+@main.route("/metrics/summary/<participant_id>", methods=["GET"])
+def metrics_summary(participant_id):
+    """
+    Return a detailed metrics summary for a single participant.
+    """
+    summary = generate_participant_summary(participant_id)
+    status = 200 if summary.get("has_data") else 404
+    return jsonify(summary), status
+
+
+@main.route("/metrics/global", methods=["GET"])
+def metrics_global():
+    """
+    Return a global metrics summary across all participants.
+    """
+    summary = generate_global_summary()
+    status = 200 if summary.get("has_data") else 404
+    return jsonify(summary), status
+
+
 @main.route("/start_session", methods=["POST"])
 @limiter.limit("10 per minute")
 def start_session():
@@ -166,13 +213,27 @@ def start_session():
     consent_version = body.get("consent_version")
     source = body.get("source", "unknown")
 
+    task_id = body.get("task_id")
+    task_def = None
+    if task_id:
+        # validate that the task exists in the catalog
+        task_def = get_task(task_id)
+        if not task_def:
+            return jsonify({"ok": False, "error": "unknown_task_id", "task_id": task_id}), 400
+
     session_record = {
         "ts": time.time(),
         "event_type": "session_start",
         "participant_id": participant_id,
         "consent_version": consent_version,
         "source": source,
-        "meta": body,
+        "task_id": task_id,
+        "task_meta": {
+            "id": task_def.get("task_id") if task_def else None,
+            "category": task_def.get("category") if task_def else None,
+            "difficulty": task_def.get("difficulty") if task_def else None,
+         } if task_def else None,
+         "meta": body, 
     }
 
     try:
@@ -195,6 +256,8 @@ def start_session():
             {
                 "ok": True,
                 "participant_id": participant_id,
+                "task_id": task_id,
+                "task": task_def,
             }
         ), 201
 
@@ -256,6 +319,11 @@ def submit_result():
         # TODO: add cognitive metrics when those are defined
         metrics = {"note": "Cognitive session; metrics TBD"}
         session_type = "cognitive"
+
+    elif isinstance(saved, dict) and saved.get("task_id") and "answer" in saved:
+        # Single-task result (e.g. pattern_001, logic_001, etc.)
+        metrics = evaluate_task_answer(saved)
+        session_type = "single_task"
 
     else:
         metrics = {"note": "Unknown data type; no metrics computed"}
