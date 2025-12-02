@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shape MVP Demo</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #e7f1ff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      padding: 24px 28px;
+      max-width: 520px;
+      width: 100%;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.6rem;
+      color: #123456;
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: #4c627f;
+      margin-bottom: 16px;
+    }
+    .status {
+      font-size: 0.85rem;
+      color: #4c627f;
+      margin-bottom: 8px;
+    }
+    .question {
+      font-size: 1.1rem;
+      margin: 16px 0 12px;
+      color: #111827;
+    }
+    .meta {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    button.option {
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      cursor: pointer;
+      text-align: left;
+      font-size: 0.95rem;
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+    button.option:hover {
+      background: #dbeafe;
+      transform: translateY(-1px);
+    }
+    button.option:disabled {
+      opacity: 0.6;
+      cursor: default;
+      transform: none;
+    }
+    .feedback {
+      min-height: 20px;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+    .feedback.correct {
+      color: #16a34a;
+    }
+    .feedback.wrong {
+      color: #dc2626;
+    }
+    .footer {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 10px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: #e5e7eb;
+      margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Adaptive Task Demo</h1>
+    <div class="subtitle">
+      We’ll start a session, choose a task for you, and adapt based on your answers.
+    </div>
+
+    <div id="status" class="status">Initializing…</div>
+
+    <div id="question" class="question"></div>
+    <div id="meta" class="meta"></div>
+
+    <div id="options" class="options"></div>
+
+    <div id="feedback" class="feedback"></div>
+
+    <div class="footer">
+      Shape MVP • Demo mode • Results are for illustration only.
+    </div>
+  </div>
+
+  <script>
+    let participantId = null;
+    let currentTask = null;
+    let busy = false;
+
+    function setStatus(text) {
+      document.getElementById("status").textContent = text;
+    }
+
+    function setFeedback(text, kind) {
+      const el = document.getElementById("feedback");
+      el.textContent = text || "";
+      el.className = "feedback" + (kind ? " " + kind : "");
+    }
+
+    function renderTask(task) {
+      currentTask = task;
+      const qEl = document.getElementById("question");
+      const metaEl = document.getElementById("meta");
+      const optionsEl = document.getElementById("options");
+
+      if (!task) {
+        qEl.textContent = "No more tasks available.";
+        metaEl.textContent = "";
+        optionsEl.innerHTML = "";
+        return;
+      }
+
+      qEl.textContent = task.instruction || "(no instruction)";
+      const bits = [];
+      if (task.category) bits.push(`<span class="pill">${task.category}</span>`);
+      if (task.difficulty != null) bits.push(`<span class="pill">Difficulty ${task.difficulty}</span>`);
+      metaEl.innerHTML = bits.join(" ");
+
+      optionsEl.innerHTML = "";
+      const opts = task.options || [];
+      if (opts.length === 0) {
+        optionsEl.textContent = "(This task has no options configured.)";
+        return;
+      }
+
+      opts.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.className = "option";
+        btn.textContent = opt;
+        btn.onclick = () => submitAnswer(opt);
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function setOptionsDisabled(disabled) {
+      document.querySelectorAll("button.option").forEach(btn => {
+        btn.disabled = disabled;
+      });
+    }
+
+    async function startSession() {
+      setStatus("Starting session…");
+      setFeedback("", "");
+      try {
+        const resp = await fetch("/start_session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: "demo",
+            consent_version: "v1"
+          })
+        });
+        const data = await resp.json();
+        if (!data.ok) {
+          setStatus("Failed to start session.");
+          console.error("start_session error", data);
+          return;
+        }
+        participantId = data.participant_id;
+        setStatus("Session started · ID: " + participantId);
+        await loadNextTask();
+      } catch (err) {
+        console.error(err);
+        setStatus("Error starting session.");
+      }
+    }
+
+    async function loadNextTask() {
+      if (!participantId) {
+        setStatus("No participant ID; cannot load task.");
+        return;
+      }
+      busy = true;
+      setOptionsDisabled(true);
+      setFeedback("", "");
+      setStatus("Picking next task…");
+      try {
+        const resp = await fetch("/tasks/next/" + encodeURIComponent(participantId));
+        const data = await resp.json();
+        if (!data.ok || !data.task) {
+          setStatus("No suitable next task.");
+          renderTask(null);
+          return;
+        }
+        setStatus("Task ready. Choose an answer.");
+        renderTask(data.task);
+        setOptionsDisabled(false);
+      } catch (err) {
+        console.error(err);
+        setStatus("Error loading next task.");
+      } finally {
+        busy = false;
+      }
+    }
+
+    async function submitAnswer(answer) {
+      if (busy || !currentTask || !participantId) return;
+      busy = true;
+      setOptionsDisabled(true);
+      setFeedback("Submitting answer…", "");
+      try {
+        const payload = {
+          participant_id: participantId,
+          task_id: currentTask.task_id || currentTask.id,
+          answer: answer
+        };
+        const resp = await fetch("/submit_result", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        const metrics = data.metrics || {};
+        if (metrics.is_correct === true) {
+          setFeedback("Correct ✔", "correct");
+        } else if (metrics.is_correct === false) {
+          setFeedback("Not quite. Let’s try another one.", "wrong");
+        } else {
+          setFeedback("Answer recorded.", "");
+        }
+        // brief pause then move to next task
+        setTimeout(() => {
+          loadNextTask();
+        }, 900);
+      } catch (err) {
+        console.error(err);
+        setFeedback("Error submitting answer.", "wrong");
+      } finally {
+        busy = false;
+      }
+    }
+
+    // Kick things off
+    document.addEventListener("DOMContentLoaded", () => {
+      startSession();
+    });
+  </script>
+</body>
+</html>
+

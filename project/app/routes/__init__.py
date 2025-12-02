@@ -86,6 +86,14 @@ def status():
     return jsonify({"status": "ok", "version": "0.1.0"}), 200
 
 
+@main.route("/demo", methods=["GET"])
+def demo():
+    """
+    Simple browser demo for adaptive tasks.
+    """
+    return render_template("demo.html")
+
+
 @main.route("/erase/<participant_id>", methods=["DELETE"])
 def erase_participant(participant_id):
     """Public erase endpoint (non-admin). Best-effort anonymization."""
