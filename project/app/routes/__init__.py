@@ -25,6 +25,7 @@ from project.app.services.analytics import (
     generate_global_summary,
 )
 from project.app.services.adaptive import suggest_next_task
+from project.app.services.reports import build_participant_report
 
 
 # limiter import (adjust if you keep a different layout)
@@ -217,6 +218,16 @@ def metrics_global():
     summary = generate_global_summary()
     status = 200 if summary.get("has_data") else 404
     return jsonify(summary), status
+
+
+@main.route("/metrics/report/<participant_id>", methods=["GET"])
+def metrics_report(participant_id):
+    """
+    Teacher-friendly participant report.
+    """
+    report = build_participant_report(participant_id)
+    status = 200 if report.get("ok") else 404
+    return jsonify(report), status
 
 
 @main.route("/start_session", methods=["POST"])
