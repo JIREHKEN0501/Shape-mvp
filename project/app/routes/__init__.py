@@ -87,6 +87,14 @@ def status():
     return jsonify({"status": "ok", "version": "0.1.0"}), 200
 
 
+@main.route("/dashboard", methods=["GET"])
+def dashboard():
+    """
+    Universal analytics dashboard (works for any industry).
+    """
+    return render_template("dashboard.html")
+
+
 @main.route("/demo", methods=["GET"])
 def demo():
     """
