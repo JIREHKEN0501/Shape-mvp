@@ -24,3 +24,5 @@ __pycache__/
 *.bak
 *.sqlite3
 export.json
+session_data.json
+legacy_backups/
