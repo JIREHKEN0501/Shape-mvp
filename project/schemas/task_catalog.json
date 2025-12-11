@@ -9,6 +9,22 @@
       "answer": "32"
     },
     {
+      "task_id": "pattern_002",
+      "category": "pattern_recognition",
+      "difficulty": 2,
+      "instruction": "Find the next number in the sequence: 3, 6, 12, 24, ?",
+      "options": ["30", "36", "42", "48"],
+      "answer": "48"
+    },
+    {
+      "task_id": "pattern_003",
+      "category": "pattern_recognition",
+      "difficulty": 3,
+      "instruction": "Find the next number in the sequence: 5, 9, 17, 33, ?",
+      "options": ["49", "57", "65", "69"],
+      "answer": "65"
+    },
+    {
       "task_id": "logic_001",
       "category": "logical_reasoning",
       "difficulty": 1,
@@ -17,17 +33,69 @@
       "answer": "Cannot be determined"
     },
     {
+      "task_id": "logic_002",
+      "category": "logical_reasoning",
+      "difficulty": 2,
+      "instruction": "If A is taller than B, and B is taller than C, which statement is true?",
+      "options": [
+        "C is taller than A",
+        "A is taller than C",
+        "B is taller than A",
+        "It cannot be determined"
+      ],
+      "answer": "A is taller than C"
+    },
+    {
+      "task_id": "logic_003",
+      "category": "logical_reasoning",
+      "difficulty": 3,
+      "instruction": "If the first two statements are true, what can we conclude? 1) All project leads attend the weekly review. 2) Jireh does not attend the weekly review. 3) Therefore:",
+      "options": [
+        "Jireh is a project lead",
+        "Jireh is not a project lead",
+        "Jireh sometimes leads projects",
+        "Nothing can be concluded"
+      ],
+      "answer": "Jireh is not a project lead"
+    },
+    {
       "task_id": "emotion_001",
       "category": "emotional_intelligence",
       "difficulty": 2,
-      "instruction": "Your teammate misses a deadline due to personal issues. What’s your best initial reaction?",
+      "instruction": "Your teammate misses a deadline due to personal issues. What's your best initial reaction?",
       "options": [
         "Criticize them for unprofessionalism",
-        "Ask privately if they’re okay and offer help",
+        "Ask privately if they're okay and offer help",
         "Ignore it and move on",
         "Report them immediately"
       ],
-      "answer": "Ask privately if they’re okay and offer help"
+      "answer": "Ask privately if they're okay and offer help"
+    },
+    {
+      "task_id": "emotion_002",
+      "category": "emotional_intelligence",
+      "difficulty": 2,
+      "instruction": "A colleague gives a presentation that goes poorly. Afterward, they look upset. What is the most emotionally intelligent response?",
+      "options": [
+        "Tell them everything they did wrong in detail",
+        "Avoid them so it is not awkward",
+        "Ask how they feel and offer specific encouragement",
+        "Joke about the presentation to lighten the mood"
+      ],
+      "answer": "Ask how they feel and offer specific encouragement"
+    },
+    {
+      "task_id": "emotion_003",
+      "category": "emotional_intelligence",
+      "difficulty": 3,
+      "instruction": "You strongly disagree with a teammate's idea in a meeting. What is the best way to respond?",
+      "options": [
+        "Interrupt and say the idea will never work",
+        "Wait, then calmly explain your concerns and propose an alternative",
+        "Stay silent and complain to others later",
+        "Roll your eyes so they know you disagree"
+      ],
+      "answer": "Wait, then calmly explain your concerns and propose an alternative"
     },
     {
       "task_id": "moral_001",
@@ -35,12 +103,25 @@
       "difficulty": 2,
       "instruction": "You find a small but critical error in a report already sent to management. What do you do?",
       "options": [
-        "Stay quiet and hope it’s unnoticed",
+        "Stay quiet and hope it's unnoticed",
         "Report it immediately and send a corrected version",
         "Blame a teammate for the mistake",
         "Wait until asked about it"
       ],
       "answer": "Report it immediately and send a corrected version"
+    },
+    {
+      "task_id": "moral_002",
+      "category": "moral_dilemma",
+      "difficulty": 3,
+      "instruction": "You notice a close friend at work copying answers during an important certification test. What is the most ethical response?",
+      "options": [
+        "Ignore it; it is none of your business",
+        "Warn them quietly but do not tell anyone",
+        "Report the behavior through the proper channel",
+        "Copy their answers too so it is fair"
+      ],
+      "answer": "Report the behavior through the proper channel"
     },
     {
       "task_id": "memory_001",
@@ -49,6 +130,60 @@
       "instruction": "Memorize this sequence: CAT, TREE, MOON. Now, which of these words appeared last?",
       "options": ["CAT", "TREE", "MOON", "SUN"],
       "answer": "MOON"
+    },
+    {
+      "task_id": "memory_002",
+      "category": "memory_test",
+      "difficulty": 2,
+      "instruction": "Memorize this sequence: 7, 3, 9, 1. Now, which of these options shows the correct order?",
+      "options": ["7,3,9,1", "1,9,3,7", "7,9,3,1", "3,7,1,9"],
+      "answer": "7,3,9,1"
+    },
+    {
+      "task_id": "memory_003",
+      "category": "memory_test",
+      "difficulty": 3,
+      "instruction": "Memorize this list: GLASS, TRAIN, ORANGE, CLOUD, KEY. Which pair of words appeared together in the list?",
+      "options": [
+        "GLASS and KEY",
+        "TRAIN and CLOUD",
+        "ORANGE and GLASS",
+        "CLOUD and KEY"
+      ],
+      "answer": "TRAIN and CLOUD"
+    },
+    {
+      "task_id": "attention_001",
+      "category": "attention",
+      "difficulty": 1,
+      "instruction": "Select the ONLY option that contains the letter 'X' exactly two times.",
+      "options": ["AXXB", "XXXA", "ABXC", "XABX"],
+      "answer": "XABX"
+    },
+    {
+      "task_id": "attention_002",
+      "category": "attention",
+      "difficulty": 2,
+      "instruction": "Which of these strings contains the digit '7' exactly three times?",
+      "options": ["717770", "771270", "707770", "177707"],
+      "answer": "707770"
+    },
+    {
+      "task_id": "verbal_001",
+      "category": "verbal_reasoning",
+      "difficulty": 1,
+      "instruction": "Which word is most similar in meaning to HAPPY?",
+      "options": ["SAD", "JOYFUL", "ANGRY", "TIRED"],
+      "answer": "JOYFUL"
+    },
+    {
+      "task_id": "verbal_002",
+      "category": "verbal_reasoning",
+      "difficulty": 2,
+      "instruction": "Which option best completes the analogy? CAREFUL is to RECKLESS as PATIENT is to:",
+      "options": ["CALM", "IMPULSIVE", "KIND", "HAPPY"],
+      "answer": "IMPULSIVE"
     }
   ]
 }
+

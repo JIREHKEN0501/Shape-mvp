@@ -178,9 +178,25 @@ def export_dashboard():
 @main.route("/tasks", methods=["GET"])
 def tasks_index():
     """
-    Return the full task catalog (sanitized) as JSON.
+    Return the task catalog as JSON.
+
+    Optional query parameters:
+      - category: filter by task category (e.g. 'memory_test', 'attention')
+      - difficulty: filter by difficulty level (int)
     """
+    # Base list (answers hidden by default)
     tasks = list_tasks()
+
+    # Optional filters
+    category = request.args.get("category")
+    difficulty = request.args.get("difficulty", type=int)
+
+    if category:
+        tasks = [t for t in tasks if t.get("category") == category]
+
+    if difficulty is not None:
+        tasks = [t for t in tasks if t.get("difficulty") == difficulty]
+
     return jsonify({"ok": True, "count": len(tasks), "tasks": tasks}), 200
 
 
