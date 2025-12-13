@@ -16,7 +16,8 @@ from typing import List, Dict, Any, Optional
 
 from project.app.helpers import DATA_LOG
 from project.app.services.metrics import evaluate_task_answer
-
+from project.app.core.insights import generate_insights
+from project.app.services.confidence import evaluate_confidence
 
 def _load_all_records() -> List[Dict[str, Any]]:
     """
@@ -290,7 +291,7 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
     first_ts = min(all_ts) if all_ts else None
     last_ts = max(all_ts) if all_ts else None
 
-    return {
+    summary = {
         "participant_id": participant_id,
         "has_data": True,
         "total_attempts": total_attempts,
@@ -303,6 +304,29 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
         "last_activity_ts": last_ts,
         "sessions_count": len(sessions),
     }
+
+    # Generate explainable insights (Phase 6A)
+    try:
+        summary["insights"] = generate_insights(summary)
+    except Exception:
+        summary["insights"] = {
+            "notes": ["Insights temporarily unavailable."]
+        }
+
+    # -----------------------------------
+    # Phase 6D: Confidence & uncertainty
+    # -----------------------------------
+    try:
+        summary["confidence"] = evaluate_confidence(summary)
+    except Exception:
+        summary["confidence"] = {
+            "confidence_level": "unknown",
+            "confidence_score": 0.0,
+            "data_sufficiency": False,
+            "uncertainty_factors": ["Confidence evaluation unavailable."],
+        }
+
+    return summary
 
 
 def generate_global_summary() -> Dict[str, Any]:

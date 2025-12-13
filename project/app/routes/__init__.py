@@ -19,13 +19,19 @@ from project.app.services.validators import (
 )
 from project.app.services.metrics import compute_behavioral_metrics, evaluate_task_answer
 from project.app.services.sessions import save_session_result
-from project.app.services.tasks import list_tasks, get_task
 from project.app.services.analytics import (
     generate_participant_summary,
     generate_global_summary,
 )
 from project.app.services.adaptive import suggest_next_task
 from project.app.services.reports import build_participant_report
+from project.app.services.tasks import (
+    list_tasks,
+    get_task,
+    get_next_task_for_participant,
+)
+from project.app.core.scoring import score_task_attempt
+
 
 
 # limiter import (adjust if you keep a different layout)
@@ -211,17 +217,16 @@ def task_detail(task_id):
     return jsonify({"ok": True, "task": task}), 200
 
 
-@main.route("/tasks/next/<participant_id>", methods=["GET"])
+@main.route("/tasks/next/<participant_id>")
 def tasks_next(participant_id):
     """
-    Adaptive task suggestion endpoint.
+    Adaptive next-task endpoint.
 
-    Uses the participant's past performance (if any)
-    to pick an appropriate next task.
+    Uses the participant's history (from logs/data_log.jsonl) plus
+    the current TASK_CATALOG to pick a suitable next task.
     """
-    result = suggest_next_task(participant_id)
-    status = 200 if result.get("ok") else 404
-    return jsonify(result), status
+    task = get_next_task_for_participant(participant_id)
+    return jsonify({"ok": True, "task": task})
 
 
 @main.route("/metrics/summary/<participant_id>", methods=["GET"])
@@ -378,8 +383,19 @@ def submit_result():
         session_type = "cognitive"
 
     elif isinstance(saved, dict) and saved.get("task_id") and "answer" in saved:
-        # Single-task result (e.g. pattern_001, logic_001, etc.)
-        metrics = evaluate_task_answer(saved)
+        task = get_task(saved.get("task_id"), include_answer=True)
+
+        if not task:
+            metrics = {"error": "task_not_found"}
+        else:
+ 
+            metrics = score_task_attempt(
+                task=task,
+                submitted_answer=saved.get("answer"),
+                started_at_ms=saved.get("started_at_ms"),
+                submitted_at_ms=saved.get("submitted_at_ms"),
+            )
+
         session_type = "single_task"
 
     else:

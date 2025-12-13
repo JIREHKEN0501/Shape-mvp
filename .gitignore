@@ -26,3 +26,4 @@ __pycache__/
 export.json
 session_data.json
 legacy_backups/
+project/schemas/task_catalog.backup.json
