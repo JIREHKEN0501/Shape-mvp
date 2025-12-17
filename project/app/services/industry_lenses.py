@@ -4,6 +4,11 @@ Industry interpretation lenses for HumanOS.
 These functions translate neutral performance summaries into
 contextual, non-diagnostic insights for different domains.
 They respect system confidence and data sufficiency.
+
+All lenses:
+- respect confidence and data sufficiency
+- degrade safely under uncertainty
+- do not produce diagnostic, hiring, or predictive judgments
 """
 
 

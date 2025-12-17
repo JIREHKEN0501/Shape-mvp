@@ -235,6 +235,12 @@ def metrics_summary(participant_id):
     Return a detailed metrics summary for a single participant.
     """
     summary = generate_participant_summary(participant_id)
+
+    mode = request.args.get("mode", "education")
+
+    summary["system_mode"] = mode
+    summary["mode_disclaimer"] = f"Outputs are interpreted under '{mode}' mode. See system_modes.md."
+    
     status = 200 if summary.get("has_data") else 404
     return jsonify(summary), status
 

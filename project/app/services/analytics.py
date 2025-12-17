@@ -323,8 +323,29 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
             "confidence_level": "unknown",
             "confidence_score": 0.0,
             "data_sufficiency": False,
-            "uncertainty_factors": ["Confidence evaluation unavailable."],
+            "uncertainty_factors": ["Confidence evaluation unavailable."]
         }
+
+    # -----------------------------------
+    # Phase 6E / 7A: Interpretation boundaries
+    # -----------------------------------
+    summary["interpretation_boundaries"] = {
+        "non_diagnostic": True,
+        "non_predictive": True,
+        "non_deterministic": True,
+        "limitations": [
+            "Results reflect task performance, not intelligence, mental health, or ability.",
+            "Single-session or low-volume data reduces reliability.",
+            "Performance may be influenced by fatigue, context, or misunderstanding.",
+            "Outputs should not be used as the sole basis for decisions affecting individuals."
+        ],
+        "intended_use": [
+            "Self-reflection",
+            "Learning support",
+            "Trend monitoring over time",
+            "Human-in-the-loop evaluation"
+        ],
+    }
 
     return summary
 

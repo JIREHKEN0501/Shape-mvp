@@ -6,6 +6,10 @@ def generate_insights(summary: dict) -> dict:
         "stability": [],
         "notes": [],
     }
+        # Global safety assertion (always present)
+        insights["notes"].append(
+            "Insights are observational, non-diagnostic, and context-dependent."
+        )
 
     total = summary.get("total_attempts", 0)
     accuracy = summary.get("accuracy")
