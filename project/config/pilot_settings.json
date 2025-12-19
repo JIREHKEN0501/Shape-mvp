@@ -1,0 +1,8 @@
+{
+    "pilot_mode": true,
+    "pilot_type": "internal_personal",
+    "allowed_domains": ["localhost", "127.0.0.1"],
+    "max_participants": 5,
+    "pilot_notes": "Restricted internal testing only. Not for external users."
+}
+
