@@ -18,7 +18,7 @@
   <div class="container">
     <h2>Complete the sequence: 1, 2, 5, 11, ?</h2>
 
-    <form method="post" id="answer-form" action="{{ url_for('index') }}">
+    <form method="post" id="answer-form" action="{{ url_for('participant.index') }}">
       <input type="text" name="answer" id="answer" placeholder="Enter your answer" value="{{ user_answer|default('') }}" required>
     
       <!-- Dynamic Honeypot Field (rotates via cookie) -->

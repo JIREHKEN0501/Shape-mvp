@@ -1,0 +1,6 @@
+# project/app/routes/admin/__init__.py
+
+from ..admin import admin_bp
+
+__all__ = ["admin_bp"]
+
