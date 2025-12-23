@@ -1,108 +1,143 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{{ task.title }}</title>
-    <meta charset="UTF-8">
+  <title>{{ task.title }}</title>
+  <meta charset="UTF-8">
+
+  <style>
+    .option {
+      display: block;
+      padding: 8px;
+      margin: 6px 0;
+      border: 1px solid #ccc;
+      cursor: pointer;
+    }
+
+    .option.selected {
+      outline: 3px solid #007bff;
+      background-color: #e6f0ff;
+    }
+
+    #submit-btn {
+      padding: 10px 18px;
+      font-size: 16px;
+      margin-top: 15px;
+    }
+  </style>
 </head>
+
 <body>
 
-<h2>{{ task.title }}</h2>
-<p>{{ task.description }}</p>
+  <h2>{{ task.title }}</h2>
+  <p>{{ task.description }}</p>
 
-<div id="task-area"></div>
+  <div id="task-area"></div>
 
-<button id="submit-btn" disabled>Submit Results</button>
+  <button id="submit-btn" disabled>Submit Results</button>
 
-<script>
-let startTime = Date.now();
-let answers = [];
+  <script>
+    let startTime = Date.now();
+    let answers = [];
 
-const task = {{ task | tojson }};
+    const task = {{ task | tojson }};
 
-function renderQuestion(q) {
-    let div = document.createElement("div");
-    div.innerHTML = `
+    function renderQuestion(q) {
+      let div = document.createElement("div");
+
+      div.innerHTML = `
         <p><b>${q.prompt}</b></p>
         ${q.options.map(o => `
-            <label>
-                <input type="radio" name="${q.question_id}" value="${o}">
-                ${o}
-            </label><br>
+          <label class="option">
+            <input type="radio" name="${q.question_id}" value="${o}">
+            ${o}
+          </label>
         `).join('')}
         <hr>
-    `;
-    return div;
-}
+      `;
 
-const taskArea = document.getElementById("task-area");
+      div.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener("change", () => {
+          div.querySelectorAll('.option').forEach(opt =>
+            opt.classList.remove('selected')
+          );
+          radio.parentElement.classList.add('selected');
+          checkAllAnswered();
+        });
+      });
 
-for (let module of task.modules) {
-    for (let q of module.questions) {
-        taskArea.appendChild(renderQuestion(q));
+      return div;
     }
-}
 
-document.querySelectorAll("input[type=radio]").forEach(radio => {
-    radio.addEventListener("change", () => {
-        let allAnswered = true;
+    function checkAllAnswered() {
+      let allAnswered = true;
 
-        for (let module of task.modules) {
-            for (let q of module.questions) {
-                if (!document.querySelector(`input[name="${q.question_id}"]:checked`)) {
-                    allAnswered = false;
-                }
-            }
-        }
-
-        if (allAnswered) {
-            document.getElementById("submit-btn").disabled = false;
-        }
-    });
-});
-
-document.getElementById("submit-btn").onclick = () => {
-    let endTime = Date.now();
-
-    // collect results
-    for (let module of task.modules) {
+      for (let module of task.modules) {
         for (let q of module.questions) {
-            let choice = document.querySelector(`input[name="${q.question_id}"]:checked`).value;
-
-            answers.push({
-                question_id: q.question_id,
-                correct: q.correct,
-                user_answer: choice,
-                time_taken_seconds: (endTime - startTime) / 1000
-            });
+          if (!document.querySelector(
+            `input[name="${q.question_id}"]:checked`
+          )) {
+            allAnswered = false;
+          }
         }
+      }
+
+      document.getElementById("submit-btn").disabled = !allAnswered;
     }
 
-    fetch("/submit_result", {
+    const taskArea = document.getElementById("task-area");
+
+    for (let module of task.modules) {
+      for (let q of module.questions) {
+        taskArea.appendChild(renderQuestion(q));
+      }
+    }
+
+    document.getElementById("submit-btn").onclick = () => {
+      answers = [];
+      let endTime = Date.now();
+
+      for (let module of task.modules) {
+        for (let q of module.questions) {
+          let choice = document.querySelector(
+            `input[name="${q.question_id}"]:checked`
+          ).value;
+
+          answers.push({
+            question_id: q.question_id,
+            correct: q.correct,
+            user_answer: choice,
+            time_taken_seconds: (endTime - startTime) / 1000
+          });
+        }
+      }
+
+      fetch("/submit_result", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            participant_id: getCookie("participant_id"),
-            task_id: task.task_id,
-            modules: [
-                {
-                    module_name: task.modules[0].module_name,
-                    questions: answers
-                }
-            ]
+          participant_id: getCookie("participant_id"),
+          task_id: task.task_id,
+          modules: [
+            {
+              module_name: task.modules[0].module_name,
+              questions: answers
+            }
+          ]
         })
-    }).then(r => r.json())
+      })
+      .then(r => r.json())
       .then(resp => {
         alert("Submitted!");
         console.log(resp);
       });
-};
+    };
 
-function getCookie(name) {
-    let value = "; " + document.cookie;
-    let parts = value.split("; " + name + "=");
-    if (parts.length === 2) return parts.pop().split(";").shift();
-}
-</script>
+    function getCookie(name) {
+      let value = "; " + document.cookie;
+      let parts = value.split("; " + name + "=");
+      if (parts.length === 2) return parts.pop().split(";").shift();
+    }
+  </script>
 
 </body>
 </html>

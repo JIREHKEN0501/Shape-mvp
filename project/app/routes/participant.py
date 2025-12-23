@@ -256,33 +256,43 @@ def erase_self():
 # ================================
 #  UNIVERSAL TASK LOADER
 # ================================
+from flask import render_template, request, jsonify, abort
+import os
+import json
+
 @participant_bp.route("/task/<task_id>", methods=["GET"])
 @limiter.limit("30 per minute")
 def load_task(task_id):
     """
-    Dynamically load any task template located in templates/tasks/<task_id>.html
+    Universal task loader.
+    Loads task JSON from app/tasks/<task_id>.json
+    Renders via cog_task.html
     """
+
+    # ---- Consent check ----
     participant_id = request.cookies.get("participant_id")
     if not participant_id:
-        # no consent cookie -> block
         return jsonify({"error": "no_consent"}), 401
 
-    template_path = f"tasks/{task_id}.html"
-
-    # Check template exists
-    template_full = os.path.join(
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "templates")),
-        "tasks",
-        f"{task_id}.html"
+    # ---- Task JSON path ----
+    tasks_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "tasks")
     )
+    task_file = os.path.join(tasks_dir, f"{task_id}.json")
 
-    if not os.path.isfile(template_full):
+    if not os.path.isfile(task_file):
         return jsonify({"error": "task_not_found", "task": task_id}), 404
 
+    # ---- Load task ----
+    with open(task_file, "r", encoding="utf-8") as f:
+        task = json.load(f)
+
+    # ---- Honeypot field ----
     hp_field = request.cookies.get("hp_field") or "hp_website"
 
     return render_template(
-        template_path,
+        "cog_task.html",
+        task=task,
         participant_id=participant_id,
         task_id=task_id,
         hp_field=hp_field
