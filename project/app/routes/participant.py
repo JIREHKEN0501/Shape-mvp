@@ -253,3 +253,38 @@ def erase_self():
 
     return jsonify({"ok": True, "replacement": replacement, "changed": total})
 
+# ================================
+#  UNIVERSAL TASK LOADER
+# ================================
+@participant_bp.route("/task/<task_id>", methods=["GET"])
+@limiter.limit("30 per minute")
+def load_task(task_id):
+    """
+    Dynamically load any task template located in templates/tasks/<task_id>.html
+    """
+    participant_id = request.cookies.get("participant_id")
+    if not participant_id:
+        # no consent cookie -> block
+        return jsonify({"error": "no_consent"}), 401
+
+    template_path = f"tasks/{task_id}.html"
+
+    # Check template exists
+    template_full = os.path.join(
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "templates")),
+        "tasks",
+        f"{task_id}.html"
+    )
+
+    if not os.path.isfile(template_full):
+        return jsonify({"error": "task_not_found", "task": task_id}), 404
+
+    hp_field = request.cookies.get("hp_field") or "hp_website"
+
+    return render_template(
+        template_path,
+        participant_id=participant_id,
+        task_id=task_id,
+        hp_field=hp_field
+    )
+

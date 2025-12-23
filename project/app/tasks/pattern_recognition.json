@@ -1,0 +1,25 @@
+{
+  "task_id": "pattern_recognition_v1",
+  "title": "Pattern Recognition",
+  "description": "Find the missing element in each pattern.",
+  "modules": [
+    {
+      "module_name": "pattern_1",
+      "questions": [
+        {
+          "question_id": "pr_q1",
+          "prompt": "What comes next in the sequence: A, C, E, G, ?",
+          "options": ["H", "I", "J", "K"],
+          "correct": "I"
+        },
+        {
+          "question_id": "pr_q2",
+          "prompt": "Find the missing number: 2, 6, 12, 20, ?",
+          "options": ["30", "32", "34", "36"],
+          "correct": "30"
+        }
+      ]
+    }
+  ]
+}
+

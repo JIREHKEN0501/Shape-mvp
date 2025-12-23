@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ task.title }}</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+
+<h2>{{ task.title }}</h2>
+<p>{{ task.description }}</p>
+
+<div id="task-area"></div>
+
+<button id="submit-btn" disabled>Submit Results</button>
+
+<script>
+let startTime = Date.now();
+let answers = [];
+
+const task = {{ task | tojson }};
+
+function renderQuestion(q) {
+    let div = document.createElement("div");
+    div.innerHTML = `
+        <p><b>${q.prompt}</b></p>
+        ${q.options.map(o => `
+            <label>
+                <input type="radio" name="${q.question_id}" value="${o}">
+                ${o}
+            </label><br>
+        `).join('')}
+        <hr>
+    `;
+    return div;
+}
+
+const taskArea = document.getElementById("task-area");
+
+for (let module of task.modules) {
+    for (let q of module.questions) {
+        taskArea.appendChild(renderQuestion(q));
+    }
+}
+
+document.querySelectorAll("input[type=radio]").forEach(radio => {
+    radio.addEventListener("change", () => {
+        let allAnswered = true;
+
+        for (let module of task.modules) {
+            for (let q of module.questions) {
+                if (!document.querySelector(`input[name="${q.question_id}"]:checked`)) {
+                    allAnswered = false;
+                }
+            }
+        }
+
+        if (allAnswered) {
+            document.getElementById("submit-btn").disabled = false;
+        }
+    });
+});
+
+document.getElementById("submit-btn").onclick = () => {
+    let endTime = Date.now();
+
+    // collect results
+    for (let module of task.modules) {
+        for (let q of module.questions) {
+            let choice = document.querySelector(`input[name="${q.question_id}"]:checked`).value;
+
+            answers.push({
+                question_id: q.question_id,
+                correct: q.correct,
+                user_answer: choice,
+                time_taken_seconds: (endTime - startTime) / 1000
+            });
+        }
+    }
+
+    fetch("/submit_result", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            participant_id: getCookie("participant_id"),
+            task_id: task.task_id,
+            modules: [
+                {
+                    module_name: task.modules[0].module_name,
+                    questions: answers
+                }
+            ]
+        })
+    }).then(r => r.json())
+      .then(resp => {
+        alert("Submitted!");
+        console.log(resp);
+      });
+};
+
+function getCookie(name) {
+    let value = "; " + document.cookie;
+    let parts = value.split("; " + name + "=");
+    if (parts.length === 2) return parts.pop().split(";").shift();
+}
+</script>
+
+</body>
+</html>
+

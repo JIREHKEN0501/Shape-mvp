@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pattern Recognition Task</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .task-container {
+            margin: 40px auto;
+            width: 420px;
+            text-align: center;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            gap: 10px;
+            margin: 20px auto;
+        }
+        .grid div {
+            background: #f3f3f3;
+            border-radius: 10px;
+            padding: 30px 0;
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .grid div:hover {
+            background: #e2e2e2;
+        }
+        .selected {
+          outline: 3px solid #007bff;
+          background-color: #e6f0ff;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+        #submit-btn {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="task-container">
+        <h2>Pattern Recognition Task</h2>
+        <p>Tap the item that completes the pattern.</p>
+
+        <input type="hidden" id="participant_id" value="{{ participant_id }}">
+        <input type="hidden" id="task_id" value="{{ task_id }}">
+        <input type="hidden" id="{{ hp_field }}" value="">
+
+        <div class="grid" id="grid">
+            <div data-value="A">A</div>
+            <div data-value="B">B</div>
+            <div data-value="C">C</div>
+            <div data-value="A">A</div>
+            <div data-value="B">B</div>
+            <div data-value="?">?</div>
+        </div>
+
+        <button id="submit-btn">Submit</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        let events = [];
+        let start_ts = Date.now();
+        let chosen = null;
+
+        document.querySelectorAll(".grid div").forEach(box => {
+            box.addEventListener("click", () => {
+                 // clear previous visual selection
+                 document.querySelectorAll(".grid div").forEach(b =>
+                   b.classList.remove("selected")
+                );
+
+                // mark this one
+                box.classList.add("selected");
+
+                // get visible text instead of data-value
+                chosen = box.textContent.trim();
+
+                events.push({
+                    type: "select",
+                    value: chosen,
+                    ts: Date.now()
+                });
+            });
+        });
+
+        document.getElementById("submit-btn").onclick = async () => {
+            const payload = {
+                participant_id: document.getElementById("participant_id").value,
+                task_id: document.getElementById("task_id").value,
+                start_ts: start_ts,
+                end_ts: Date.now(),
+                events: events
+            };
+
+            const res = await fetch("/submit_result", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            document.getElementById("status").innerText = "Task complete.";
+            document.getElementById("submit-btn").disabled = true;
+
+            // lock the grid
+            document.querySelectorAll(".grid div").forEach(b => {
+              b.style.pointerEvents = "none";
+            });
+
+            // auto-advance to next task after 1.5s
+            setTimeout(() => {
+              window.location.href = "/task/sequence_test";
+            }, 1500);
+
+        };
+    </script>
+</body>
+</html>
+
