@@ -21,6 +21,7 @@ from project.app.utils.storage import save_session_result
 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from project.app.tasks.task_registry import get_next_task
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -290,11 +291,14 @@ def load_task(task_id):
     # ---- Honeypot field ----
     hp_field = request.cookies.get("hp_field") or "hp_website"
 
+    next_task_id = get_next_task(task_id)
+
     return render_template(
         "cog_task.html",
         task=task,
         participant_id=participant_id,
         task_id=task_id,
+        next_task_id=next_task_id,
         hp_field=hp_field
     )
 

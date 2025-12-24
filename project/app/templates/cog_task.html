@@ -23,6 +23,18 @@
       font-size: 16px;
       margin-top: 15px;
     }
+
+    #status-box {
+      display: none;
+      margin-top: 20px;
+      padding: 12px;
+      border: 1px solid #28a745;
+      background: #eafaf1;
+    }
+
+    #status-box button {
+      margin-right: 10px;
+    }
   </style>
 </head>
 
@@ -34,6 +46,13 @@
   <div id="task-area"></div>
 
   <button id="submit-btn" disabled>Submit Results</button>
+
+  <!-- POST-SUBMISSION UI -->
+  <div id="status-box">
+    <p id="status-text"><b>Response recorded successfully ✅</b></p>
+    <button id="next-task-btn">Next Task</button>
+    <button id="retry-btn">Retry</button>
+  </div>
 
   <script>
     let startTime = Date.now();
@@ -57,9 +76,8 @@
 
       div.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener("change", () => {
-          div.querySelectorAll('.option').forEach(opt =>
-            opt.classList.remove('selected')
-          );
+          div.querySelectorAll('.option')
+            .forEach(opt => opt.classList.remove('selected'));
           radio.parentElement.classList.add('selected');
           checkAllAnswered();
         });
@@ -127,9 +145,26 @@
       })
       .then(r => r.json())
       .then(resp => {
-        alert("Submitted!");
         console.log(resp);
+
+        document.getElementById("status-box").style.display = "block";
+        document.getElementById("submit-btn").disabled = true;
+
+        document.querySelectorAll('input[type="radio"]')
+          .forEach(i => i.disabled = true);
       });
+    };
+
+    document.getElementById("retry-btn").onclick = () => {
+      window.location.reload();
+    };
+
+    document.getElementById("next-task-btn").onclick = () => {
+      {% if next_task_id %}
+        window.location.href = "/task/{{ next_task_id }}";
+      {% else %}
+        alert("No more tasks available.");
+      {% endif %}
     };
 
     function getCookie(name) {
