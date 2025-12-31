@@ -22,6 +22,7 @@ from project.app.utils.storage import save_session_result
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from project.app.tasks.task_registry import get_next_task
+from project.app.tasks.task_registry import TASK_SEQUENCE
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -135,7 +136,7 @@ def index():
 #  CONSENT ROUTE
 # ================================
 
-@participant_bp.route("/consent", methods=["POST"])
+@participant_bp.route("/consent", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def consent():
     trip = bot_tripwire()
@@ -275,6 +276,13 @@ def load_task(task_id):
     if not participant_id:
         return jsonify({"error": "no_consent"}), 401
 
+    # ---- Phase 8B-2-A: progression guard ----
+    if task_id not in TASK_SEQUENCE:
+        return jsonify({
+            "error": "invalid_task_sequence",
+            "task": task_id
+        }), 400
+
     # ---- Task JSON path ----
     tasks_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "tasks")
@@ -292,6 +300,7 @@ def load_task(task_id):
     hp_field = request.cookies.get("hp_field") or "hp_website"
 
     next_task_id = get_next_task(task_id)
+    is_last_task = next_task_id is None
 
     return render_template(
         "cog_task.html",
@@ -299,6 +308,7 @@ def load_task(task_id):
         participant_id=participant_id,
         task_id=task_id,
         next_task_id=next_task_id,
+        is_last_task=is_last_task,
         hp_field=hp_field
     )
 

@@ -50,7 +50,7 @@
   <!-- POST-SUBMISSION UI -->
   <div id="status-box">
     <p id="status-text"><b>Response recorded successfully ✅</b></p>
-    <button id="next-task-btn">Next Task</button>
+    <button id="next-task-btn" style="display:none;">Next Task →</button>
     <button id="retry-btn">Retry</button>
   </div>
 
@@ -59,6 +59,12 @@
     let answers = [];
 
     const task = {{ task | tojson }};
+    const nextTaskId = {{ next_task_id | tojson }};
+    const isLastTask = {{ is_last_task | tojson }};
+
+    const statusBox = document.getElementById("status-box");
+    const nextBtn = document.getElementById("next-task-btn");
+    const retryBtn = document.getElementById("retry-btn");
 
     function renderQuestion(q) {
       let div = document.createElement("div");
@@ -147,24 +153,25 @@
       .then(resp => {
         console.log(resp);
 
-        document.getElementById("status-box").style.display = "block";
+        statusBox.style.display = "block";
         document.getElementById("submit-btn").disabled = true;
 
         document.querySelectorAll('input[type="radio"]')
           .forEach(i => i.disabled = true);
+
+        // Phase 8B-2-B: show Next Task only if backend allows it
+        if (!isLastTask && nextTaskId) {
+          nextBtn.style.display = "inline-block";
+        }
       });
     };
 
-    document.getElementById("retry-btn").onclick = () => {
+    retryBtn.onclick = () => {
       window.location.reload();
     };
 
-    document.getElementById("next-task-btn").onclick = () => {
-      {% if next_task_id %}
-        window.location.href = "/task/{{ next_task_id }}";
-      {% else %}
-        alert("No more tasks available.");
-      {% endif %}
+    nextBtn.onclick = () => {
+      window.location.href = `/task/${nextTaskId}`;
     };
 
     function getCookie(name) {

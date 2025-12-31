@@ -12,7 +12,6 @@ def create_app(config_override: dict = None):
     testing, and future expansion.
     """
 
-    # Note: instance_relative_config=False is correct for your structure.
     app = Flask(__name__)
 
     # -------------------------------
@@ -24,7 +23,6 @@ def create_app(config_override: dict = None):
     app.config.setdefault("LIMITER_STORAGE_URI", "memory://")
     app.config.setdefault("DEFAULT_RATE_LIMITS", ["120 per minute"])
 
-    # Allow test overrides or runtime overrides
     if config_override:
         app.config.update(config_override)
 
@@ -38,9 +36,12 @@ def create_app(config_override: dict = None):
     # -------------------------------
     app.register_blueprint(main_bp)
 
-    # NEW admin blueprint    
+    # Admin blueprint
     from project.app.routes.admin import admin_bp
     app.register_blueprint(admin_bp)
 
-    return app
+    # Participant blueprint (NEW)
+    from project.app.routes.participant import participant_bp
+    app.register_blueprint(participant_bp)
 
+    return app
