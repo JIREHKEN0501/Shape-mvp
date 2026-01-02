@@ -47,7 +47,6 @@
 
   <button id="submit-btn" disabled>Submit Results</button>
 
-  <!-- POST-SUBMISSION UI -->
   <div id="status-box">
     <p id="status-text"><b>Response recorded successfully ✅</b></p>
     <button id="next-task-btn" style="display:none;">Next Task →</button>
@@ -55,19 +54,26 @@
   </div>
 
   <script>
+    console.count("SCRIPT RUN");
+
+    console.log("JS alive");
+
+    const task = {{ task | tojson }};
+    console.log("Task payload:", task);
+
     let startTime = Date.now();
     let answers = [];
 
-    const task = {{ task | tojson }};
-    const nextTaskId = {{ next_task_id | tojson }};
-    const isLastTask = {{ is_last_task | tojson }};
+    const taskArea = document.getElementById("task-area");
 
+    console.log("Modules:", task.modules);
+    const submitBtn = document.getElementById("submit-btn");
     const statusBox = document.getElementById("status-box");
     const nextBtn = document.getElementById("next-task-btn");
     const retryBtn = document.getElementById("retry-btn");
 
     function renderQuestion(q) {
-      let div = document.createElement("div");
+      const div = document.createElement("div");
 
       div.innerHTML = `
         <p><b>${q.prompt}</b></p>
@@ -76,7 +82,7 @@
             <input type="radio" name="${q.question_id}" value="${o}">
             ${o}
           </label>
-        `).join('')}
+        `).join("")}
         <hr>
       `;
 
@@ -95,88 +101,82 @@
     function checkAllAnswered() {
       let allAnswered = true;
 
-      for (let module of task.modules) {
-        for (let q of module.questions) {
-          if (!document.querySelector(
-            `input[name="${q.question_id}"]:checked`
-          )) {
+      for (const module of task.modules) {
+        for (const q of module.questions) {
+          if (!document.querySelector(`input[name="${q.question_id}"]:checked`)) {
             allAnswered = false;
           }
         }
       }
 
-      document.getElementById("submit-btn").disabled = !allAnswered;
+      submitBtn.disabled = !allAnswered;
     }
 
-    const taskArea = document.getElementById("task-area");
-
-    for (let module of task.modules) {
-      for (let q of module.questions) {
+    // ✅ Render questions (correct data path)
+    for (const module of task.modules) {
+      for (const q of module.questions) {
         taskArea.appendChild(renderQuestion(q));
       }
     }
 
-    document.getElementById("submit-btn").onclick = () => {
+    submitBtn.onclick = () => {
       answers = [];
-      let endTime = Date.now();
+      const endTime = Date.now();
 
-      for (let module of task.modules) {
-        for (let q of module.questions) {
-          let choice = document.querySelector(
+      for (const module of task.modules) {
+        for (const q of module.questions) {
+          const choice = document.querySelector(
             `input[name="${q.question_id}"]:checked`
           ).value;
 
           answers.push({
             question_id: q.question_id,
             correct: q.correct,
-            user_answer: choice,
             time_taken_seconds: (endTime - startTime) / 1000
           });
         }
       }
 
-      fetch("/submit_result", {
+      fetch("/participant/submit_result", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           participant_id: getCookie("participant_id"),
           task_id: task.task_id,
-          modules: [
-            {
-              module_name: task.modules[0].module_name,
-              questions: answers
-            }
-          ]
+          modules: [{
+            module_name: task.modules[0].module_name,
+            questions: answers
+          }]
         })
       })
       .then(r => r.json())
       .then(resp => {
-        console.log(resp);
+        console.log("Submit response:", resp);
 
         statusBox.style.display = "block";
-        document.getElementById("submit-btn").disabled = true;
+        submitBtn.disabled = true;
 
         document.querySelectorAll('input[type="radio"]')
           .forEach(i => i.disabled = true);
 
-        // Phase 8B-2-B: show Next Task only if backend allows it
-        if (!isLastTask && nextTaskId) {
+        if (resp.session_complete) {
+          document.getElementById("status-text").innerHTML =
+            "<b>Session complete 🎉 Thank you for participating.</b>";
+        } else {
           nextBtn.style.display = "inline-block";
         }
       });
     };
 
-    retryBtn.onclick = () => {
-      window.location.reload();
-    };
+    retryBtn.onclick = () => window.location.reload();
 
     nextBtn.onclick = () => {
-      window.location.href = `/task/${nextTaskId}`;
+      window.location.href = "/task/{{ next_task_id }}";
     };
 
     function getCookie(name) {
-      let value = "; " + document.cookie;
-      let parts = value.split("; " + name + "=");
+      const value = "; " + document.cookie;
+      const parts = value.split("; " + name + "=");
       if (parts.length === 2) return parts.pop().split(";").shift();
     }
   </script>

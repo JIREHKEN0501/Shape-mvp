@@ -1,6 +1,7 @@
 # project/app/routes/participant.py
 
 import os, uuid, hashlib
+import statistics
 from flask import (
     Blueprint, request, jsonify, render_template,
     make_response
@@ -23,6 +24,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from project.app.tasks.task_registry import get_next_task
 from project.app.tasks.task_registry import TASK_SEQUENCE
+from project.app.tasks.task_registry import get_next_task
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -81,6 +83,55 @@ def validate_cognitive_session(s: dict):
 
     return True, None
 
+def build_session_summary(saved: dict) -> dict:
+    """
+    Build a safe, numeric session summary from a completed session.
+    Phase 8C-3: no inference, no labels.
+    """
+
+    participant_id = saved.get("participant_id")
+    task_id = saved.get("task_id")
+    modules = saved.get("modules", [])
+
+    questions = [
+        q
+        for m in modules
+        for q in m.get("questions", [])
+    ]
+
+    total_questions = len(questions)
+    correct_answers = sum(1 for q in questions if q.get("correct") is True)
+
+    times = [q.get("time_taken_seconds", 0) for q in questions if q.get("time_taken_seconds") is not None]
+    total_time = sum(times)
+
+    summary = {
+        "participant_id": participant_id,
+        "session_complete": saved.get("session_complete", False),
+
+        "tasks_completed": 1,
+        "task_ids": [task_id] if task_id else [],
+
+        "total_questions": total_questions,
+        "correct_answers": correct_answers,
+        "accuracy": (correct_answers / total_questions) if total_questions else None,
+
+        "total_time_seconds": round(total_time, 2),
+        "avg_time_per_question": round(total_time / total_questions, 2) if total_questions else None,
+        "min_time_per_question": round(min(times), 2) if times else None,
+        "max_time_per_question": round(max(times), 2) if times else None,
+        "decision_time_std": round(statistics.stdev(times), 2) if len(times) > 1 else 0.0,
+
+        "summary_validity": {
+            "tasks_observed": 1,
+            "questions_observed": total_questions,
+            "confidence_level": "low"
+        },
+
+        "completed_at": now_iso()
+    }
+
+    return summary
 
 
 # ================================
@@ -176,17 +227,26 @@ def consent():
 #  SUBMIT RESULT
 # ================================
 
-@participant_bp.route("/submit_result", methods=["POST"])
+@participant_bp.route("/participant/submit_result", methods=["POST"])
 @limiter.limit("20 per minute")
 def submit_result():
+
     trip = bot_tripwire()
     if trip:
         return trip
 
     if not request.is_json:
+        print("❌ NOT JSON")
         return jsonify({"error": "Request must be JSON"}), 400
 
-    session = request.get_json()
+    data = request.get_json()
+
+    participant_id = request.cookies.get("participant_id")
+    if not participant_id:
+        return jsonify({"error": "no_participant_cookie"}), 401
+
+    data["participant_id"] = participant_id
+    session = data
 
     # validation
     if isinstance(session, dict) and "events" in session:
@@ -200,6 +260,17 @@ def submit_result():
             return jsonify({"error": msg}), 400
 
     saved = save_session_result(session)
+ 
+    # ---- Phase 8C-1: session completion detection ----
+    task_id = saved.get("task_id")
+    is_complete = get_next_task(task_id) is None
+
+    saved["session_complete"] = is_complete
+
+    # ---- Phase 8C-3: build session summary ----
+    session_summary = None
+    if is_complete:
+        session_summary = build_session_summary(saved)
 
     # metrics
     if "events" in saved:
@@ -216,12 +287,16 @@ def submit_result():
         actor=f"participant:{saved.get('participant_id','unknown')}",
         action="submit_result",
         subject=saved.get("task_id"),
-        notes=f"type={t}",
+        notes=f"type={t}, complete={is_complete}",
     )
 
-    return jsonify({"saved": saved, "metrics": metrics}), 201
-
-
+    return jsonify({
+        "saved": saved,
+        "metrics": metrics,
+        "session_complete": is_complete,
+        "session_summary": session_summary
+    }), 201
+   
 
 # ================================
 #  SELF-ERASE
