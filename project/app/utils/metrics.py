@@ -51,34 +51,40 @@ def compute_behavioral_metrics(session: dict) -> dict:
 def compute_cognitive_metrics(session: dict) -> dict:
     """
     Compute metrics from cognitive sessions.
+    Accuracy is computed by comparing user_answer to correct answer.
     """
+
     modules = session.get("modules", [])
 
     total_questions = 0
-    correct = 0
+    correct_answers = 0
     total_time = 0.0
-    total_hesitation = 0.0
-    total_retries = 0.0
 
     for m in modules:
         for q in m.get("questions", []):
             total_questions += 1
-            if q.get("correct"):
-                correct += 1
+
+            correct_answer = q.get("correct")
+            user_answer = q.get("user_answer")
+
+            # ✅ THIS is the fix
+            if (
+                correct_answer is not None
+                and user_answer is not None
+                and str(user_answer).strip() == str(correct_answer).strip()
+            ):
+                correct_answers += 1
+
             total_time += q.get("time_taken_seconds", 0) or 0
-            total_hesitation += q.get("hesitation_seconds", 0) or 0
-            total_retries += q.get("retries", 0) or 0
 
     if total_questions == 0:
         return {"note": "no questions"}
 
     return {
-        "accuracy_pct": round((correct / total_questions) * 100, 2),
+        "accuracy_pct": round((correct_answers / total_questions) * 100, 2),
         "avg_time_s": round(total_time / total_questions, 2),
-        "avg_hesitation_s": round(total_hesitation / total_questions, 2),
-        "avg_retries": round(total_retries / total_questions, 2),
+        "question_count": total_questions,
     }
-
 
 def aggregate_metrics(records=None):
     """

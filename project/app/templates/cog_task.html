@@ -35,6 +35,14 @@
     #status-box button {
       margin-right: 10px;
     }
+
+    #session-summary {
+      display: none;
+      margin-top: 20px;
+      padding: 12px;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+    }
   </style>
 </head>
 
@@ -53,24 +61,28 @@
     <button id="retry-btn">Retry</button>
   </div>
 
+  <!-- Phase 9B-1: Session summary (hidden by default) -->
+  <div id="session-summary">
+    <h3>Session Summary</h3>
+    <div id="summary-content"></div>
+    <p style="font-size:0.9em;color:#555;">
+      This reflects how you approached this task, not who you are.
+    </p>
+  </div>
+
   <script>
-    console.count("SCRIPT RUN");
-
-    console.log("JS alive");
-
     const task = {{ task | tojson }};
-    console.log("Task payload:", task);
 
     let startTime = Date.now();
     let answers = [];
 
     const taskArea = document.getElementById("task-area");
-
-    console.log("Modules:", task.modules);
     const submitBtn = document.getElementById("submit-btn");
     const statusBox = document.getElementById("status-box");
     const nextBtn = document.getElementById("next-task-btn");
     const retryBtn = document.getElementById("retry-btn");
+    const summaryBox = document.getElementById("session-summary");
+    const summaryContent = document.getElementById("summary-content");
 
     function renderQuestion(q) {
       const div = document.createElement("div");
@@ -112,11 +124,86 @@
       submitBtn.disabled = !allAnswered;
     }
 
-    // ✅ Render questions (correct data path)
+    // Render questions (single, correct path)
     for (const module of task.modules) {
       for (const q of module.questions) {
         taskArea.appendChild(renderQuestion(q));
       }
+    }
+
+
+    // -------- Phase 9B-2: Human-readable translations --------
+
+    function describePace(avgTime) {
+      if (avgTime === null) return "Not enough data to estimate pace.";
+      if (avgTime < 3) return "You responded very quickly overall.";
+      if (avgTime < 6) return "You responded at a steady, moderate pace.";
+      return "You took a slower, more deliberate pace overall.";
+    }
+
+    function describeConsistency(variance) {
+      if (variance === null || variance === undefined)
+        return "Your response timing was extremely consistent.";
+      if (variance < 1) return "Your response times were very consistent.";
+      if (variance < 4) return "Your response times showed some variation.";
+      return "Your response times varied significantly across questions.";
+    }
+
+    function renderSessionSummary(summary) {
+      if (!summary) return;
+
+      summaryContent.innerHTML = "";
+
+      // Accuracy
+      if (summary.accuracy_ratio !== undefined) {
+        const p = document.createElement("p");
+        const pct = Math.round(summary.accuracy_ratio * 100);
+        p.innerHTML = `<b>Accuracy:</b> ${pct}%`;
+        summaryContent.appendChild(p);
+      }
+
+      // Pace
+      if (summary.avg_time_per_question !== undefined) {
+        const p = document.createElement("p");
+        p.innerHTML = `<b>Pace:</b> ${
+          summary.avg_time_per_question < 4
+            ? "You responded very quickly."
+            : summary.avg_time_per_question < 7
+            ? "You responded at a steady, moderate pace."
+            : "You took a more deliberate pace with your responses."
+        }`;
+        summaryContent.appendChild(p);
+      }
+
+      // Consistency
+      if (summary.time_variance !== undefined) {
+        const p = document.createElement("p");
+        p.innerHTML = `<b>Consistency:</b> ${
+          summary.time_variance < 1
+            ? "Your response times were very consistent."
+            : summary.time_variance < 4
+            ? "Your response times showed some variation."
+            : "Your response times varied significantly."
+        }`;
+        summaryContent.appendChild(p);
+      }
+
+      // High-level profile
+      if (summary.speed_accuracy_profile) {
+        const p = document.createElement("p");
+        const map = {
+          fast_accurate: "You worked quickly while maintaining accuracy.",
+          slow_accurate: "You took your time and answered carefully.",
+          fast_inaccurate: "You moved quickly but accuracy suffered.",
+          slow_inaccurate: "You took your time, but accuracy was inconsistent."
+        };
+        p.innerHTML = `<b>Overall pattern:</b> ${
+          map[summary.speed_accuracy_profile] || "No clear pattern detected."
+        }`;
+        summaryContent.appendChild(p);
+      }
+
+      summaryBox.style.display = "block";
     }
 
     submitBtn.onclick = () => {
@@ -132,6 +219,7 @@
           answers.push({
             question_id: q.question_id,
             correct: q.correct,
+            user_answer: choice,
             time_taken_seconds: (endTime - startTime) / 1000
           });
         }
@@ -141,7 +229,6 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          participant_id: getCookie("participant_id"),
           task_id: task.task_id,
           modules: [{
             module_name: task.modules[0].module_name,
@@ -151,17 +238,18 @@
       })
       .then(r => r.json())
       .then(resp => {
-        console.log("Submit response:", resp);
-
         statusBox.style.display = "block";
         submitBtn.disabled = true;
 
         document.querySelectorAll('input[type="radio"]')
           .forEach(i => i.disabled = true);
 
-        if (resp.session_complete) {
+        if (resp.session_complete === true && resp.session_summary) {
           document.getElementById("status-text").innerHTML =
             "<b>Session complete 🎉 Thank you for participating.</b>";
+
+          renderSessionSummary(resp.session_summary);
+          nextBtn.style.display = "none";
         } else {
           nextBtn.style.display = "inline-block";
         }
