@@ -64,11 +64,45 @@
   <!-- Phase 9B-1: Session summary (hidden by default) -->
   <div id="session-summary">
     <h3>Session Summary</h3>
+
+    <!-- Phase 9C-1-A: Context banner -->
+    <p style="font-size:0.85em; color:#666; margin-top:-6px;">
+      This summary reflects <b>how you approached this task</b> during this session.
+      It is not a diagnosis or a fixed assessment.
+    </p>
+
     <div id="summary-content"></div>
     <p style="font-size:0.9em;color:#555;">
       This reflects how you approached this task, not who you are.
     </p>
   </div>
+
+  <!-- Phase 9C-2-A: Interpretation toggle -->
+  <div id="summary-help" style="margin-top:16px;">
+    <button id="toggle-help" style="font-size:0.9em;">
+      How should I read this?
+    </button>
+
+    <div id="help-text" style="display:none; margin-top:8px; font-size:0.9em; color:#444;">
+      <p>
+        This summary describes patterns observed <b>in this task only</b>.
+        It does not define your intelligence, personality, or long-term ability.
+      </p>
+      <p>
+        Results can change with context, familiarity, fatigue, or task design.
+      </p>
+ 
+     <!-- Phase 9C-2-B Step 2: How to use this -->
+     <p>
+       You can use this summary to reflect on <b>how</b> you approached the task —
+       for example, whether you moved quickly, paused often, or maintained a steady rhythm.
+     </p>
+
+     <p>
+       If you repeat similar tasks, you may notice different patterns depending on
+       strategy, focus, or conditions. That change is expected.
+     </p>
+   </div>
 
   <script>
     const task = {{ task | tojson }};
@@ -154,18 +188,18 @@
 
       summaryContent.innerHTML = "";
 
-      // Accuracy
+      // Accuracy (tasked-scoped, non-global)
       if (summary.accuracy_ratio !== undefined) {
         const p = document.createElement("p");
         const pct = Math.round(summary.accuracy_ratio * 100);
-        p.innerHTML = `<b>Accuracy:</b> ${pct}%`;
+        p.innerHTML = `<b>Accuracy in this task:</b> ${pct}%`;
         summaryContent.appendChild(p);
       }
 
-      // Pace
+      // Response pace (observational)
       if (summary.avg_time_per_question !== undefined) {
         const p = document.createElement("p");
-        p.innerHTML = `<b>Pace:</b> ${
+        p.innerHTML = `<b>Response pace:</b> ${
           summary.avg_time_per_question < 4
             ? "You responded very quickly."
             : summary.avg_time_per_question < 7
@@ -175,10 +209,10 @@
         summaryContent.appendChild(p);
       }
 
-      // Consistency
+      // Response pattern (not consistency)
       if (summary.time_variance !== undefined) {
         const p = document.createElement("p");
-        p.innerHTML = `<b>Consistency:</b> ${
+        p.innerHTML = `<b>Response pattern:</b> ${
           summary.time_variance < 1
             ? "Your response times were very consistent."
             : summary.time_variance < 4
@@ -202,6 +236,17 @@
         }`;
         summaryContent.appendChild(p);
       }
+
+      /* ---- Phase 9C-1-C: Closing reassurance ---- */
+      const footer = document.createElement("p");
+      footer.style.fontSize = "0.9em";
+      footer.style.color = "#555";
+      footer.style.marginTop = "12px";
+      footer.innerHTML =
+        "This summary reflects how you approached this task today. " +
+        "It is not a measure of intelligence, personality, or potential.";
+
+      summaryContent.appendChild(footer);
 
       summaryBox.style.display = "block";
     }
@@ -261,10 +306,21 @@
     nextBtn.onclick = () => {
       window.location.href = "/task/{{ next_task_id }}";
     };
+    
+    /* Phase 9C-2-A: Interpretation toggle handler */
+    const toggleBtn = document.getElementById("toggle-help");
+    const helpText = document.getElementById("help-text");
+
+    if (toggleBtn && helpText) {
+      toggleBtn.onclick = () => {
+        helpText.style.display =
+          helpText.style.display === "none" ? "block" : "none";
+      };
+    }
 
     function getCookie(name) {
       const value = "; " + document.cookie;
-      const parts = value.split("; " + name + "=");
+          const parts = value.split("; " + name + "=");
       if (parts.length === 2) return parts.pop().split(";").shift();
     }
   </script>
