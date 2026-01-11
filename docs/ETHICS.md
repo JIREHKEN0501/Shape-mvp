@@ -58,3 +58,24 @@ This system is built with the explicit commitment that:
 
 Any future extension of this system must preserve these principles.
 
+
+🔗 Operational Alignment & Supporting Documents
+
+This ethics document is not aspirational in isolation.
+Its principles are actively implemented and constrained by the following system documents:
+
+Session Contract (docs/session_contract.md)
+Defines what a session is, what it may contain, how it is identified, and how it may be retrieved.
+Ensures session-scoped interpretation, participant ownership, and summary-first access.
+
+System Principles (docs/system_principles.md)
+Establishes foundational design constraints, including:
+
+Population-level patterns do not define individuals
+
+Metrics describe behavior within context, not traits or identities
+
+No permanent labeling, diagnosis, or inference beyond session scope
+
+All features, metrics, summaries, and retrieval mechanisms are expected to comply with these documents.
+Where conflicts arise, participant safety, interpretability, and non-diagnostic use take precedence.

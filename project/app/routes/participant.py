@@ -26,6 +26,10 @@ from project.app.tasks.task_registry import get_next_task
 from project.app.tasks.task_registry import TASK_SEQUENCE
 from project.app.tasks.task_registry import get_next_task
 from project.app.utils.session_loader import load_session_by_id
+from project.app.utils.session_loader import (
+    get_schema_version,
+    is_schema_supported,
+)
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -292,6 +296,10 @@ def consent():
     return resp
 
 
+# NOTE:
+# A "session" represents a single task interaction only.
+# It is contextual, immutable once saved, and must not be
+# interpreted as a stable personal attribute.
 
 # ================================
 #  SUBMIT RESULT
@@ -332,6 +340,22 @@ def submit_result():
         ok, msg = validate_cognitive_session(session)
         if not ok:
             return jsonify({"error": msg}), 400
+
+    # ---- Phase 9D-4-B: session metadata (non-identifying) ----
+    session.setdefault("schema_version", "1.0")
+
+    # Task versioning (safe default)
+    if "task_version" not in session:
+        session["task_version"] = "v1"
+
+    # Coarse client context (NOT fingerprinting)
+    session["client_context"] = {
+        "user_agent_family": (
+            "mobile" if "Mobile" in (request.headers.get("User-Agent") or "")
+            else "desktop"
+        ),
+        "timezone_offset_min": request.headers.get("X-Timezone-Offset")
+    }
 
     saved = save_session_result(session)
  
@@ -388,11 +412,17 @@ def get_participant_session(session_id):
     if not participant_id:
         return jsonify({"error": "no_participant_cookie"}), 401
 
-    from project.app.utils.storage import load_session_by_id
-
     session = load_session_by_id(session_id)
     if not session:
         return jsonify({"error": "session_not_found"}), 404
+
+    # ---- Phase 9D-4-C-3: schema guard ----
+    schema_version = get_schema_version(session)
+    if not is_schema_supported(schema_version):
+        return jsonify({
+            "error": "unsupported_schema_version",
+            "schema_version": schema_version
+        }), 400
 
     # Ownership check
     if session.get("participant_id") != participant_id:

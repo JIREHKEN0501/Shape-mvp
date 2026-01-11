@@ -33,3 +33,20 @@ def load_session_by_id(session_id: str) -> dict | None:
 
     return None
 
+def get_schema_version(session: dict) -> str:
+    """
+    Return schema version for a session.
+    Defaults to '1.0' for legacy sessions.
+    """
+    if not isinstance(session, dict):
+        return "unknown"
+
+    return session.get("schema_version", "1.0")
+
+def is_schema_supported(version: str) -> bool:
+    """
+    Check whether this schema version is supported by the app.
+    """
+    supported_versions = {"1.0"}
+    return version in supported_versions
+
