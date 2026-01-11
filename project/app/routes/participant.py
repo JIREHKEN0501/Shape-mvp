@@ -25,6 +25,7 @@ from flask_limiter.util import get_remote_address
 from project.app.tasks.task_registry import get_next_task
 from project.app.tasks.task_registry import TASK_SEQUENCE
 from project.app.tasks.task_registry import get_next_task
+from project.app.utils.session_loader import load_session_by_id
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -317,6 +318,10 @@ def submit_result():
     data["participant_id"] = participant_id
     session = data
 
+    # ---- Phase 9D-1: session identity (ADD THIS BLOCK) ----
+    if "session_id" not in session:
+        session["session_id"] = str(uuid.uuid4())
+
     # validation
     if isinstance(session, dict) and "events" in session:
         ok, msg = validate_behavioral_session(session)
@@ -370,6 +375,59 @@ def submit_result():
         "session_summary": session_summary
     }), 201
    
+
+# ================================
+#  PARTICIPANT SESSION RETRIEVAL
+#  (summary-first, privacy-safe)
+# ================================
+
+@participant_bp.route("/participant/session/<session_id>", methods=["GET"])
+@limiter.limit("10 per minute")
+def get_participant_session(session_id):
+    participant_id = request.cookies.get("participant_id")
+    if not participant_id:
+        return jsonify({"error": "no_participant_cookie"}), 401
+
+    from project.app.utils.storage import load_session_by_id
+
+    session = load_session_by_id(session_id)
+    if not session:
+        return jsonify({"error": "session_not_found"}), 404
+
+    # Ownership check
+    if session.get("participant_id") != participant_id:
+        return jsonify({"error": "unauthorized"}), 403
+
+    # Summary-first response
+    response = {
+        "session_id": session.get("session_id"),
+        "task_id": session.get("task_id"),
+        "saved_ts": session.get("saved_ts"),
+        "metrics": None,
+        "session_summary": None,
+    }
+
+    # Metrics (safe)
+    if "modules" in session:
+        response["metrics"] = compute_cognitive_metrics(session)
+    elif "events" in session:
+        response["metrics"] = compute_behavioral_metrics(session)
+
+    # Summary only if session was complete
+    if session.get("session_complete") is True:
+        if "modules" in session:
+            response["session_summary"] = build_cognitive_session_summary(session)
+
+    # 🔐 Audit log (participant self-access)
+    audit_record(
+        actor=f"participant:{participant_id}",
+        action="retrieve_session",
+        subject=session_id,
+        notes="participant_self_access_summary_only",
+    )
+
+    return jsonify(response), 200
+
 
 # ================================
 #  SELF-ERASE
