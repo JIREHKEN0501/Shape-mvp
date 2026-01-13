@@ -1,7 +1,6 @@
 # project/app/routes/participant.py
 
 import os, uuid, hashlib
-import statistics
 from flask import (
     Blueprint, request, jsonify, render_template,
     make_response
@@ -30,6 +29,7 @@ from project.app.utils.session_loader import (
     get_schema_version,
     is_schema_supported,
 )
+from project.app.utils.summary_adapter import build_session_summary
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -87,126 +87,6 @@ def validate_cognitive_session(s: dict):
                     return False, f"q[{qi}] in module[{mi}] missing '{k}'"
 
     return True, None
-
-def build_session_summary(saved: dict) -> dict:
-    """
-    Build a safe, numeric session summary from a completed session.
-    Phase 8C-3: no inference, no labels.
-    """
-
-    participant_id = saved.get("participant_id")
-    task_id = saved.get("task_id")
-    modules = saved.get("modules", [])
-
-    questions = [
-        q
-        for m in modules
-        for q in m.get("questions", [])
-    ]
-
-    total_questions = len(questions)
-    correct_answers = sum(1 for q in questions if q.get("correct") is True)
-
-    times = [q.get("time_taken_seconds", 0) for q in questions if q.get("time_taken_seconds") is not None]
-    total_time = sum(times)
-
-    summary = {
-        "participant_id": participant_id,
-        "session_complete": saved.get("session_complete", False),
-
-        "tasks_completed": 1,
-        "task_ids": [task_id] if task_id else [],
-
-        "total_questions": total_questions,
-        "correct_answers": correct_answers,
-        "accuracy": (correct_answers / total_questions) if total_questions else None,
-
-        "total_time_seconds": round(total_time, 2),
-        "avg_time_per_question": round(total_time / total_questions, 2) if total_questions else None,
-        "min_time_per_question": round(min(times), 2) if times else None,
-        "max_time_per_question": round(max(times), 2) if times else None,
-        "decision_time_std": round(statistics.stdev(times), 2) if len(times) > 1 else 0.0,
-
-        "summary_validity": {
-            "tasks_observed": 1,
-            "questions_observed": total_questions,
-            "confidence_level": "low"
-        },
-
-        "completed_at": now_iso()
-    }
-
-    return summary
-
-
-def build_cognitive_session_summary(session: dict) -> dict:
-    """
-    Build safe, descriptive metrics for a cognitive task session.
-    Non-diagnostic. Non-inferential.
-    """
-
-    modules = session.get("modules", [])
-    questions = []
-
-    for m in modules:
-        questions.extend(m.get("questions", []))
-
-    total = len(questions)
-    if total == 0:
-        return {
-            "total_questions": 0,
-            "accuracy_ratio": None,
-            "avg_time_per_question": None,
-            "median_time_per_question": None,
-            "time_variance": None,
-            "speed_accuracy_profile": "insufficient_data",
-        }
-
-    correct_count = 0
-    for q in questions:
-        correct = q.get("correct")
-        user_answer = q.get("user_answer")
-
-        if (
-            correct is not None
-            and user_answer is not None
-            and str(correct).strip() == str(user_answer).strip()
-        ):
-            correct_count += 1
-
-    times = [
-        q["time_taken_seconds"]
-        for q in questions
-        if isinstance(q, dict)
-        and isinstance(q.get("time_taken_seconds"), (int, float))
-    ]
-
-    avg_time = round(statistics.mean(times), 3) if len(times) >= 1 else None
-    median_time = round(statistics.median(times), 3) if len(times) >= 1 else None
-    variance = round(statistics.pvariance(times), 3) if len(times) >= 2 else 0.0
-
-    accuracy_ratio = round(correct_count / total, 3)
-
-    # --- Speed–Accuracy Profile (simple & explainable) ---
-    if avg_time is None:
-        profile = "insufficient_data"
-    elif accuracy_ratio >= 0.75 and avg_time <= 6:
-        profile = "fast_accurate"
-    elif accuracy_ratio >= 0.75:
-        profile = "slow_accurate"
-    elif avg_time <= 6:
-        profile = "fast_inaccurate"
-    else:
-        profile = "slow_inaccurate"
-
-    return {
-        "total_questions": total,
-        "accuracy_ratio": accuracy_ratio,
-        "avg_time_per_question": round(avg_time, 3) if avg_time is not None else None,
-        "median_time_per_question": round(median_time, 3) if median_time is not None else None,
-        "time_variance": round(variance, 3),
-        "speed_accuracy_profile": profile,
-    }
 
 # ================================
 #  ROOT PUZZLE ROUTE
@@ -365,14 +245,8 @@ def submit_result():
 
     saved["session_complete"] = is_complete
 
-    # ---- Phase 9A-2: build cognitive session summary ----
-    session_summary = None
-    if is_complete is True and "modules" in saved:
-        session_summary = build_cognitive_session_summary(saved)
-
-    # Safety: summary must NEVER exist if session is not complete
-    if session_summary is not None and is_complete is not True:
-        session_summary = None
+    # ---- Phase 11A-3: unified session summary adapter ----
+    session_summary = build_session_summary(saved)    
 
     # metrics
     if "events" in saved:

@@ -1,0 +1,32 @@
+{
+  "task_id": "strategy_under_constraint_v1",
+  "title": "Decision Strategy Task",
+  "description": "This task explores how you make decisions when resources are limited.",
+  "modules": [
+    {
+      "module_name": "allocation_round_1",
+      "questions": [
+        {
+          "question_id": "suc_q1",
+          "prompt": "You have limited time and resources. Which option do you prioritize first?",
+          "options": [
+            "Secure immediate stability",
+            "Invest in long-term payoff",
+            "Gather more information before acting"
+          ],
+          "correct": null
+        },
+        {
+          "question_id": "suc_q2",
+          "prompt": "When conditions are uncertain, which approach feels most natural?",
+          "options": [
+            "Act quickly and adjust later",
+            "Wait until uncertainty reduces",
+            "Balance speed with safeguards"
+          ],
+          "correct": null
+        }
+      ]
+    }
+  ]
+}

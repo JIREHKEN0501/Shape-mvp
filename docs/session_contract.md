@@ -76,6 +76,14 @@ Cross-session traits
 
 Inferred psychological attributes
 
+### Session Summary Adapter
+
+All session summaries returned to participants MUST:
+- Be generated via `build_session_summary`
+- Be session-scoped only
+- Never assign traits, labels, or diagnoses
+- Follow a stable output structure
+
 
 5. Participant Access (Summary-First)
 

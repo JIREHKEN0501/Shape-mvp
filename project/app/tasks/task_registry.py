@@ -3,6 +3,7 @@
 
 TASK_SEQUENCE = [
     "pattern_recognition",
+    "strategy_under_constraint_v1",
     # add more task IDs here later
     # "memory_01",
     # "conflict_01",
