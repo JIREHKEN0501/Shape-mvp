@@ -186,23 +186,24 @@
     function renderSessionSummary(summary) {
       if (!summary) return;
 
+      const data = summary.data;
       summaryContent.innerHTML = "";
 
       // Accuracy (tasked-scoped, non-global)
-      if (summary.accuracy_ratio !== undefined) {
+      if (data.accuracy_ratio !== undefined) {
         const p = document.createElement("p");
-        const pct = Math.round(summary.accuracy_ratio * 100);
+        const pct = Math.round(data.accuracy_ratio * 100);
         p.innerHTML = `<b>Accuracy in this task:</b> ${pct}%`;
         summaryContent.appendChild(p);
       }
 
       // Response pace (observational)
-      if (summary.avg_time_per_question !== undefined) {
+      if (data.avg_time_per_question !== undefined) {
         const p = document.createElement("p");
         p.innerHTML = `<b>Response pace:</b> ${
-          summary.avg_time_per_question < 4
+          data.avg_time_per_question < 4
             ? "You responded very quickly."
-            : summary.avg_time_per_question < 7
+            : data.avg_time_per_question < 7
             ? "You responded at a steady, moderate pace."
             : "You took a more deliberate pace with your responses."
         }`;
@@ -210,12 +211,12 @@
       }
 
       // Response pattern (not consistency)
-      if (summary.time_variance !== undefined) {
+      if (data.time_variance !== undefined) {
         const p = document.createElement("p");
         p.innerHTML = `<b>Response pattern:</b> ${
-          summary.time_variance < 1
+          data.time_variance < 1
             ? "Your response times were very consistent."
-            : summary.time_variance < 4
+            : data.time_variance < 4
             ? "Your response times showed some variation."
             : "Your response times varied significantly."
         }`;
@@ -223,7 +224,7 @@
       }
 
       // High-level profile
-      if (summary.speed_accuracy_profile) {
+      if (data.speed_accuracy_profile) {
         const p = document.createElement("p");
         const map = {
           fast_accurate: "You worked quickly while maintaining accuracy.",
@@ -232,7 +233,7 @@
           slow_inaccurate: "You took your time, but accuracy was inconsistent."
         };
         p.innerHTML = `<b>Overall pattern:</b> ${
-          map[summary.speed_accuracy_profile] || "No clear pattern detected."
+          map[data.speed_accuracy_profile] || "No clear pattern detected."
         }`;
         summaryContent.appendChild(p);
       }

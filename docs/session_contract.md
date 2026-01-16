@@ -227,3 +227,23 @@ Sessions describe moments, not identities.
 
 
 This principle governs system design, interpretation, and communication.
+
+
+## Stability Guarantee (v1)
+
+The session summary contract is considered **stable** under version `1.x`.
+
+- Keys may be added, but existing keys MUST NOT change meaning
+- Any breaking change requires a new major version (v2)
+- Summaries describe **session-level patterns only**
+- Summaries MUST NOT:
+  - assign traits
+  - predict future behavior
+  - label individuals
+  - persist across sessions as identity
+
+Incomplete sessions MUST return:
+```json
+{
+  "session_summary": null
+}
