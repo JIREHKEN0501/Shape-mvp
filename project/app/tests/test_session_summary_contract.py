@@ -47,8 +47,20 @@ def test_summary_only_exists_when_complete():
     assert summary is None
 
 
-def test_summary_has_expected_keys():
+def test_summary_envelope_keys_exist():
     summary = build_session_summary(minimal_completed_cognitive_session())
+
+    assert "summary_version" in summary
+    assert "summary_type" in summary
+    assert "data" in summary
+
+    assert summary["summary_version"] == "1.0"
+    assert summary["summary_type"] == "cognitive"
+
+
+def test_summary_data_has_expected_keys():
+    summary = build_session_summary(minimal_completed_cognitive_session())
+    data = summary["data"]
 
     expected_keys = {
         "total_questions",
@@ -59,11 +71,12 @@ def test_summary_has_expected_keys():
         "speed_accuracy_profile",
     }
 
-    assert expected_keys.issubset(summary.keys())
+    assert expected_keys.issubset(data.keys())
 
 
 def test_summary_contains_no_identity_fields():
     summary = build_session_summary(minimal_completed_cognitive_session())
+    data = summary["data"]
 
     forbidden = {
         "participant_id",
@@ -75,12 +88,12 @@ def test_summary_contains_no_identity_fields():
     }
 
     for key in forbidden:
-        assert key not in summary
+        assert key not in data
 
 
 def test_accuracy_bounds():
     summary = build_session_summary(minimal_completed_cognitive_session())
-    acc = summary["accuracy_ratio"]
+    acc = summary["data"]["accuracy_ratio"]
 
     assert acc is not None
     assert 0.0 <= acc <= 1.0
