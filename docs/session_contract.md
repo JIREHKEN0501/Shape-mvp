@@ -219,6 +219,10 @@ Rank or score individuals in isolation
 
 Produce definitive conclusions about people
 
+### Summary Versioning
+Session summaries follow a strict versioning and deprecation policy.
+See `docs/summary_versioning.md` for details.
+
 
 12. Closing Principle
 

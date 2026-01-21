@@ -247,6 +247,17 @@ def submit_result():
 
     # ---- Phase 11A-3: unified session summary adapter ----
     session_summary = build_session_summary(saved)    
+    
+    # ---- Phase 12A-4: fail-closed summary enforcement ----
+    if session_summary is not None:
+        if not validate_summary_schema(session_summary):
+            audit_record(
+                actor="system",
+                action="drop_invalid_summary",
+                subject=saved.get("session_id"),
+                notes="summary_schema_validation_failed"
+            )
+            session_summary = None
 
     # metrics
     if "events" in saved:

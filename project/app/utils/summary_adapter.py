@@ -3,9 +3,13 @@
 from project.app.utils.session_summaries import (
     build_cognitive_session_summary,
 )
+from project.app.utils.summary_validator import validate_summary_schema
 
 SUMMARY_VERSION = "1.0"
-
+# IMPORTANT:
+# Summary adapters must NEVER mutate historical summaries.
+# Forward compatibility is achieved by branching on summary_version,
+# not by rewriting stored session data.
 
 def build_session_summary(session: dict) -> dict | None:
     """
@@ -36,4 +40,9 @@ def build_session_summary(session: dict) -> dict | None:
             "data": build_cognitive_session_summary(session),
         }
 
-    return None
+        return None
+    ok, err = validate_summary_schema(summary)
+    if not ok:
+        raise ValueError(f"Invalid session summary: {err}")
+    
+    return summary
