@@ -4,7 +4,6 @@ from flask import Flask
 from .extensions import limiter
 from .routes import main as main_bp
 
-
 def create_app(config_override: dict = None):
     """
     Application factory.
@@ -43,5 +42,9 @@ def create_app(config_override: dict = None):
     # Participant blueprint (NEW)
     from project.app.routes.participant import participant_bp
     app.register_blueprint(participant_bp)
+   
+    # Submit result blueprint 
+    from project.app.routes.submit_result import submit_result_bp
+    app.register_blueprint(submit_result_bp)
 
     return app

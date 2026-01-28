@@ -343,82 +343,85 @@ def start_session():
 
         return jsonify({"ok": False, "error": "internal_error"}), 500
 
+# ⚠️ LEGACY ROUTE — DISABLED
+# This submit endpoint is deprecated.
+# Replaced by governed registry-aware endpoint in:
+# project/app/routes/submit_result.py
+#@main.route("/submit_result", methods=["POST"])
+#@limiter.limit("20 per minute")
+#def submit_result():
+#   trip = bot_tripwire()
+#    if trip:
+#        return trip
 
-@main.route("/submit_result", methods=["POST"])
-@limiter.limit("20 per minute")
-def submit_result():
-    trip = bot_tripwire()
-    if trip:
-        return trip
+#    """
+#   Accepts JSON body with a session object.
+#   Automatically detects type (behavioral or cognitive)
+#   and computes the correct metrics.
+#    """
+#    if not request.is_json:
+#        return jsonify({"error": "Request must be JSON"}), 400
 
-    """
-    Accepts JSON body with a session object.
-    Automatically detects type (behavioral or cognitive)
-    and computes the correct metrics.
-    """
-    if not request.is_json:
-        return jsonify({"error": "Request must be JSON"}), 400
-
-    session = request.get_json()
+#    session = request.get_json()
 
     # -------------------------------------------
     # VALIDATION LAYER: reject malformed sessions
     # -------------------------------------------
-    if isinstance(session, dict) and "events" in session:
-        ok, msg = validate_behavioral_session(session)
-        if not ok:
-            return jsonify({"error": msg}), 400
+#    if isinstance(session, dict) and "events" in session:
+#        ok, msg = validate_behavioral_session(session)
+#        if not ok:
+#            return jsonify({"error": msg}), 400
 
-    elif isinstance(session, dict) and "modules" in session:
-        ok, msg = validate_cognitive_session(session)
-        if not ok:
-            return jsonify({"error": msg}), 400
+#    elif isinstance(session, dict) and "modules" in session:
+#        ok, msg = validate_cognitive_session(session)
+#        if not ok:
+#            return jsonify({"error": msg}), 400
 
     # -------------------------------------------
 
-    saved = save_session_result(session)
+#    saved = save_session_result(session)
 
     # detect session type and compute metrics
-    if isinstance(saved, dict) and "events" in saved:
-        metrics = compute_behavioral_metrics(saved)
-        session_type = "behavioral"
+#    if isinstance(saved, dict) and "events" in saved:
+#        metrics = compute_behavioral_metrics(saved)
+#        session_type = "behavioral"
 
-    elif isinstance(saved, dict) and "modules" in saved:
-        # TODO: add cognitive metrics when those are defined
-        metrics = {"note": "Cognitive session; metrics TBD"}
-        session_type = "cognitive"
+#    elif isinstance(saved, dict) and "modules" in saved:
+#        # TODO: add cognitive metrics when those are defined
+#        metrics = {"note": "Cognitive session; metrics TBD"}
+#        session_type = "cognitive"
 
-    elif isinstance(saved, dict) and saved.get("task_id") and "answer" in saved:
-        task = get_task(saved.get("task_id"), include_answer=True)
+#    elif isinstance(saved, dict) and saved.get("task_id") and "answer" in saved:
+#        task = get_task(saved.get("task_id"), include_answer=True)
 
-        if not task:
-            metrics = {"error": "task_not_found"}
-        else:
+#        if not task:
+#            metrics = {"error": "task_not_found"}
+#        else:
  
-            metrics = score_task_attempt(
-                task=task,
-                submitted_answer=saved.get("answer"),
-                started_at_ms=saved.get("started_at_ms"),
-                submitted_at_ms=saved.get("submitted_at_ms"),
-            )
+#            metrics = score_task_attempt(
+#                task=task,
+#                submitted_answer=saved.get("answer"),
+#                started_at_ms=saved.get("started_at_ms"),
+#                submitted_at_ms=saved.get("submitted_at_ms"),
+#            )
 
-        session_type = "single_task"
+#        session_type = "single_task"
 
-    else:
-        metrics = {"note": "Unknown data type; no metrics computed"}
-        session_type = "unknown"
+#    else:
+#        metrics = {"note": "Unknown data type; no metrics computed"}
+#        session_type = "unknown"
 
     # ✅ AUDIT LOG HERE (updated to new helper signature)
-    try:
-        audit_record(
-            action="submit_result",
-            actor=f"participant:{saved.get('participant_id', 'unknown')}",
-            subject=saved.get("task_id"),
-            status="ok",
-            extra={"session_type": session_type},
-        )
-    except Exception:
-        pass
+#    try:
+#        audit_record(
+#            action="submit_result",
+#            actor=f"participant:{saved.get('participant_id', 'unknown')}",
+#            subject=saved.get("task_id"),
+#            status="ok",
+#            extra={"session_type": session_type},
+#        )
+#    except Exception:
+#       pass
 
-    return jsonify({"saved": saved, "metrics": metrics}), 201
+#    return jsonify({"saved": saved, "metrics": metrics}), 201
 

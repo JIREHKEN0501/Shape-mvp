@@ -183,6 +183,14 @@
       "instruction": "Which option best completes the analogy? CAREFUL is to RECKLESS as PATIENT is to:",
       "options": ["CALM", "IMPULSIVE", "KIND", "HAPPY"],
       "answer": "IMPULSIVE"
+    },
+    {
+      "task_id": "pattern_completion_v1",
+      "category": "education",
+      "difficulty": 1,
+      "type": "single_task",
+      "answer": {},
+      "metrics": ["accuracy", "response_time"]
     }
   ]
 }

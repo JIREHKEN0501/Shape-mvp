@@ -17,7 +17,7 @@ def submit_result():
         return jsonify({"ok": False, "error": "task_id is required"}), 400
 
     task = get_task(task_id, include_answer=True)
-    if not task:
+    if task is None:
         return jsonify({"ok": False, "error": "unknown task_id"}), 404
 
     metrics = score_task_attempt(
@@ -32,5 +32,5 @@ def submit_result():
             "ok": True,
             "metrics": metrics,
         }
-    )
+    ), 200
 
