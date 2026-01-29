@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HumanOS ML Task Difficulty Input Schema",
+  "description": "Schema defining the only permissible inputs to ML models for task difficulty calibration in HumanOS.",
+  "type": "object",
+  "required": [
+    "task_id",
+    "task_metadata",
+    "aggregated_metrics"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Unique identifier for the task. Must not encode participant identity."
+    },
+    "task_metadata": {
+      "type": "object",
+      "required": [
+        "declared_difficulty",
+        "domain",
+        "structure_version"
+      ],
+      "properties": {
+        "declared_difficulty": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Difficulty as declared by task designer (normalized 0–1)."
+        },
+        "domain": {
+          "type": "string",
+          "description": "Domain of application (e.g. education, aviation)."
+        },
+        "structure_version": {
+          "type": "string",
+          "description": "Version identifier for the task structure."
+        }
+      },
+      "additionalProperties": false
+    },
+    "aggregated_metrics": {
+      "type": "object",
+      "required": [
+        "num_sessions",
+        "accuracy_mean",
+        "accuracy_std",
+        "avg_time_mean",
+        "avg_time_std",
+        "time_variance_mean",
+        "error_rate"
+      ],
+      "properties": {
+        "num_sessions": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of sessions aggregated for this task."
+        },
+        "accuracy_mean": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Mean accuracy across sessions."
+        },
+        "accuracy_std": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Standard deviation of accuracy."
+        },
+        "avg_time_mean": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Mean average time per task or question."
+        },
+        "avg_time_std": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Standard deviation of average time."
+        },
+        "time_variance_mean": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Mean intra-session time variance."
+        },
+        "error_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Proportion of incorrect responses."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
