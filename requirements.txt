@@ -20,6 +20,7 @@ limits==5.6.0
 markdown-it-py==4.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
+numpy
 ordered-set==4.1.0
 packaging==25.0
 pluggy==1.6.0
