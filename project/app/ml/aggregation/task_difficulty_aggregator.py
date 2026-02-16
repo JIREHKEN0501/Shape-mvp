@@ -13,7 +13,13 @@ This module:
 
 from collections import defaultdict
 from typing import Dict, List
+from project.app.ml.quality.session_quality_monitor import evaluate_session_quality
 import math
+
+# -----------------------------
+# Quality thresholds
+# -----------------------------
+MIN_AVG_TIME_THRESHOLD = 0.5   # seconds per question
 
 
 def aggregate_task_summaries(
@@ -69,14 +75,39 @@ def aggregate_task_summaries(
 def _aggregate_metrics(task_summaries: List[Dict]) -> Dict:
     """
     Aggregate numeric metrics across sessions for a single task.
+    applies quality filtering before aggregation.
+
     """
+
+    valid_summaries = []
+    filtered_count = 0
+
+    for s in task_summaries:
+        quality = evaluate_session_quality(s)
+
+        if quality["eligible_for_aggregation"]:
+            valid_summaries.append(s)
+        else:
+            filtered_count += 1
+
+    if not valid_summaries:
+        return {
+            "num_sessions": 0,
+            "accuracy_mean": 0.0,
+            "accuracy_std": 0.0,
+            "avg_time_mean": 0.0,
+            "avg_time_std": 0.0,
+            "time_variance_mean": 0.0,
+            "error_rate": 0.0,
+            "filtered_sessions": filtered_count,
+        }
 
     accuracies = []
     avg_times = []
     time_variances = []
     error_rates = []
 
-    for s in task_summaries:
+    for s in valid_summaries:
         data = s.get("data", {})
 
         if "accuracy_ratio" in data:
@@ -93,13 +124,15 @@ def _aggregate_metrics(task_summaries: List[Dict]) -> Dict:
             error_rates.append(errors / data["total_questions"])
 
     return {
-        "num_sessions": len(task_summaries),
+        "num_sessions": len(valid_summaries),
         "accuracy_mean": _mean(accuracies),
         "accuracy_std": _std(accuracies),
         "avg_time_mean": _mean(avg_times),
         "avg_time_std": _std(avg_times),
         "time_variance_mean": _mean(time_variances),
         "error_rate": _mean(error_rates),
+        "filtered_sessions": filtered_count,
+        "accuracy_distribution": accuracies,
     }
 
 
@@ -114,3 +147,52 @@ def _std(values: List[float]) -> float:
         return 0.0
     m = _mean(values)
     return math.sqrt(sum((v - m) ** 2 for v in values) / (len(values) - 1))
+
+# ------------------------------------------------------------
+# Public wrapper function (used by tests and integration layer)
+# ------------------------------------------------------------
+
+def aggregate_sessions(
+    summaries: List[Dict],
+    task_metadata_lookup: Dict[str, Dict] | None = None,
+):
+    """
+    Public API wrapper.
+
+    If task_metadata_lookup is provided:
+        → production aggregation (summary → ML input)
+
+    If not provided:
+        → simplified aggregation for synthetic stress testing
+    """
+
+    # ------------------------------
+    # Stress test mode
+    # ------------------------------
+    if task_metadata_lookup is None:
+        if not summaries:
+            return {}
+
+        accuracies = [s["accuracy"] for s in summaries]
+        response_times = [s["response_time"] for s in summaries]
+
+        accuracy_mean = _mean(accuracies)
+        accuracy_std = _std(accuracies)
+        avg_time_mean = _mean(response_times)
+        avg_time_std = _std(response_times)
+
+
+        return {
+            "num_sessions": len(summaries),
+            "accuracy_mean": accuracy_mean,
+            "accuracy_std": accuracy_std,
+            "avg_time_mean": avg_time_mean,
+            "avg_time_std": avg_time_std,
+            "time_variance_mean": avg_time_std ** 2,
+            "error_rate": 1.0 - accuracy_mean,
+        }
+
+    # ------------------------------
+    # Production mode
+    # ------------------------------
+    return aggregate_task_summaries(summaries, task_metadata_lookup)
