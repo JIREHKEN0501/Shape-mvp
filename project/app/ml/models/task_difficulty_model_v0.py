@@ -17,6 +17,10 @@ from typing import Dict, List
 import math
 import random
 from project.app.ml.stability.drift_detector import detect_drift
+from project.app.ml.statistics.bayesian_calibration import (
+    beta_posterior,
+    normal_posterior,
+)
 
 # -----------------------------
 # Configuration (explicit)
@@ -117,11 +121,61 @@ def compute_task_difficulty(
     declared = task_input["task_metadata"]["declared_difficulty"]
     metrics = task_input["aggregated_metrics"]
 
-    signals = _compute_signals(metrics)
+    n = metrics.get("num_sessions", 0)
+
+    # -----------------------------
+    # Bayesian Signal Estimation
+    # -----------------------------
+
+    # Accuracy → Beta posterior
+    accuracy_post = beta_posterior(
+        accuracy_mean=metrics["accuracy_mean"],
+        n=n,
+    )
+
+    accuracy_signal = 1.0 - accuracy_post["posterior_mean"]
+
+    # Error rate → Beta posterior
+    error_post = beta_posterior(
+        accuracy_mean=metrics["error_rate"],
+        n=n,
+    )
+
+    error_signal = error_post["posterior_mean"]
+
+    # Avg time → Normal posterior
+    avg_time_post = normal_posterior(
+        sample_mean=metrics["avg_time_mean"],
+        sample_variance=metrics["avg_time_std"] ** 2,
+        n=n,
+        prior_mean=metrics["avg_time_mean"],   # neutral prior (no pull toward zero)
+        prior_precision=1.0,
+    )
+
+    avg_time_signal = _normalize_positive(
+        avg_time_post["posterior_mean"]
+    )
+
+    # Time variance → Normal posterior
+    variance_post = normal_posterior(
+        sample_mean=metrics["time_variance_mean"],
+        sample_variance=metrics["accuracy_std"] ** 2,
+        n=n,
+    )
+
+    variance_signal = _normalize_positive(variance_post["posterior_mean"])
+
+    signals = {
+        "accuracy": accuracy_signal,
+        "error_rate": error_signal,
+        "avg_time": avg_time_signal,
+        "time_variance": variance_signal,
+    }
+
     empirical = _weighted_difficulty(signals)
+
     confidence = _compute_confidence(metrics)
     delta = empirical - declared
-    n = metrics.get("num_sessions", 0)
     std = metrics.get("accuracy_std", 0.0)
 
     accuracy_distribution = metrics.get("accuracy_distribution")
@@ -164,6 +218,7 @@ def compute_task_difficulty(
 
     return {
         "task_id": task_id,
+        "model_version": "1.0.0",
         "declared_difficulty": declared,
         "empirical_difficulty": round(empirical, 4),
         "difficulty_delta": round(delta, 4),
