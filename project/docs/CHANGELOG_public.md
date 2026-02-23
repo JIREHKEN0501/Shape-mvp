@@ -3,6 +3,16 @@
 We maintain a transparent history of major improvements to keep schools, parents, and organizations informed.
 
 ---
+## v1.0.1 – Production Hardening (Pre-Cloud)-feb 2026
+
+- Added /health/live endpoint
+- Added /health/ready endpoint
+- Structured JSON logging
+- Prometheus metrics endpoint (/metrics)
+- Docker production build (gunicorn)
+- Healthcheck integration in container
+- Environment + model version validation
+- Service uptime gauge
 
 ## Latest Updates (2025)
 

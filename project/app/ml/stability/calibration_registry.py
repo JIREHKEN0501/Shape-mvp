@@ -17,6 +17,7 @@ Design Principles:
 
 import json
 import os
+import hashlib
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -41,6 +42,13 @@ def _ensure_registry_exists():
         with open(REGISTRY_PATH, "w"):
             pass
 
+def _hash_input_bundle(bundle: dict) -> str:
+    """
+    Deterministic SHA256 hash of calibration input bundle.
+    Ensures reproducibility and tamper detection.
+    """
+    normalized = json.dumps(bundle, sort_keys=True)
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 def record_calibration(calibration_output: Dict) -> None:
     """
@@ -48,15 +56,30 @@ def record_calibration(calibration_output: Dict) -> None:
     """
     _ensure_registry_exists()
 
+    input_bundle = {
+        "task_id": calibration_output.get("task_id"),
+        "declared_difficulty": calibration_output.get("declared_difficulty"),
+        "empirical_difficulty": calibration_output.get("empirical_difficulty"),
+        "confidence_interval_95": calibration_output.get("confidence_interval_95"),
+        "confidence_level": calibration_output.get("confidence_level"),
+        "calibration_flag": calibration_output.get("calibration_flag"),
+        "model_version": calibration_output.get("model_version", "unknown"),
+    }
+
+    input_hash = _hash_input_bundle(input_bundle)
+
+
     snapshot = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "task_id": calibration_output["task_id"],
-        "empirical_difficulty": calibration_output["empirical_difficulty"],
-        "declared_difficulty": calibration_output["declared_difficulty"],
+        "task_id": calibration_output.get("task_id"),
+        "model_version": calibration_output.get("model_version", "unknown"),
+        "empirical_difficulty": calibration_output.get("empirical_difficulty"),
+        "declared_difficulty": calibration_output.get("declared_difficulty"),
         "confidence_interval_95": calibration_output.get("confidence_interval_95"),
         "confidence_level": calibration_output.get("confidence_level"),
         "calibration_flag": calibration_output.get("calibration_flag"),
         "engine_metadata": CALIBRATION_ENGINE_VERSION,
+        "input_hash": input_hash,
     }
 
     with open(REGISTRY_PATH, "a") as f:
