@@ -19,6 +19,7 @@ def score_task_attempt(
     submitted_answer: str | None,
     started_at_ms: int | None = None,
     submitted_at_ms: int | None = None,
+    latency_ms: int | None = None,
 ) -> Dict[str, Any]:
     """
     Scores a single task attempt and returns standardized metrics.
@@ -32,7 +33,6 @@ def score_task_attempt(
     is_correct = submitted_answer is not None and submitted_answer == correct_answer
 
     # Timing
-    latency_ms = None
     if started_at_ms and submitted_at_ms:
         latency_ms = max(0, submitted_at_ms - started_at_ms)
 

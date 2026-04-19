@@ -122,6 +122,7 @@
   <script>
     let participantId = null;
     let currentTask = null;
+    let taskStartTime = null;
     let busy = false;
 
     function setStatus(text) {
@@ -221,6 +222,7 @@
         }
         setStatus("Task ready. Choose an answer.");
         renderTask(data.task);
+        taskStartTime = Date.now();
         setOptionsDisabled(false);
       } catch (err) {
         console.error(err);
@@ -239,7 +241,8 @@
         const payload = {
           participant_id: participantId,
           task_id: currentTask.task_id || currentTask.id,
-          answer: answer
+          answer: answer,
+          latency_ms: taskStartTime ? Date.now() - taskStartTime : null
         };
         const resp = await fetch("/submit_result", {
           method: "POST",

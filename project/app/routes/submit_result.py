@@ -24,6 +24,7 @@ def submit_result():
         task=task,
         submitted_answer=payload.get("answer"),
         started_at_ms=payload.get("started_at_ms"),
+        latency_ms=payload.get("latency_ms"),
         submitted_at_ms=payload.get("submitted_at_ms"),
     )
 

@@ -43,6 +43,11 @@ except Exception:
 
 main = Blueprint("main", __name__)
 
+@main.route("/", methods=["GET"])
+def index():
+    from flask import jsonify
+    return jsonify({"name": "Shape MVP", "status": "running", "version": "0.1.0", "docs": "/metadata", "health": "/status"}), 200
+
 # add near other routes in project/app/routes/__init__.py
 
 @main.route("/decoy_submit", methods=["POST"])
