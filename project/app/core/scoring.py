@@ -20,6 +20,8 @@ def score_task_attempt(
     started_at_ms: int | None = None,
     submitted_at_ms: int | None = None,
     latency_ms: int | None = None,
+    retries: int | None = None,
+    hesitation: int | None = None,
 ) -> Dict[str, Any]:
     """
     Scores a single task attempt and returns standardized metrics.
@@ -44,6 +46,8 @@ def score_task_attempt(
         "correct_answer": correct_answer,
         "is_correct": is_correct,
         "latency_ms": latency_ms,
+        "retries": retries,
+        "hesitation": hesitation,
         "scored_at_ms": int(time.time() * 1000),
     }
 

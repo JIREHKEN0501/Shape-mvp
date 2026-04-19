@@ -25,6 +25,8 @@ def submit_result():
         submitted_answer=payload.get("answer"),
         started_at_ms=payload.get("started_at_ms"),
         latency_ms=payload.get("latency_ms"),
+        retries=payload.get("retries"),
+        hesitation=payload.get("hesitation"),
         submitted_at_ms=payload.get("submitted_at_ms"),
     )
 
