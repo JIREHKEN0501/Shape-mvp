@@ -123,6 +123,9 @@
     let participantId = null;
     let currentTask = null;
     let taskStartTime = null;
+    let retryCount = 0;
+    let lastAnswer = null;
+    let hesitationCount = 0;
     let busy = false;
 
     function setStatus(text) {
@@ -165,6 +168,10 @@
         const btn = document.createElement("button");
         btn.className = "option";
         btn.textContent = opt;
+        btn.onmouseover = () => {
+          if (lastAnswer !== null && lastAnswer !== opt) { hesitationCount += 1; }
+          lastAnswer = opt;
+        };
         btn.onclick = () => submitAnswer(opt);
         optionsEl.appendChild(btn);
       });
@@ -223,6 +230,9 @@
         setStatus("Task ready. Choose an answer.");
         renderTask(data.task);
         taskStartTime = Date.now();
+        retryCount = 0;
+        lastAnswer = null;
+        hesitationCount = 0;
         setOptionsDisabled(false);
       } catch (err) {
         console.error(err);
@@ -237,12 +247,15 @@
       busy = true;
       setOptionsDisabled(true);
       setFeedback("Submitting answer…", "");
+      retryCount += 1;
       try {
         const payload = {
           participant_id: participantId,
           task_id: currentTask.task_id || currentTask.id,
           answer: answer,
-          latency_ms: taskStartTime ? Date.now() - taskStartTime : null
+          latency_ms: taskStartTime ? Date.now() - taskStartTime : null,
+          retries: retryCount,
+          hesitation: hesitationCount
         };
         const resp = await fetch("/submit_result", {
           method: "POST",
