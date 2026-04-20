@@ -5,7 +5,12 @@
       "category": "pattern_recognition",
       "difficulty": 1,
       "instruction": "Find the next number in the sequence: 2, 4, 8, 16, ?",
-      "options": ["18", "24", "32", "20"],
+      "options": [
+        "18",
+        "24",
+        "32",
+        "20"
+      ],
       "answer": "32"
     },
     {
@@ -13,7 +18,12 @@
       "category": "pattern_recognition",
       "difficulty": 2,
       "instruction": "Find the next number in the sequence: 3, 6, 12, 24, ?",
-      "options": ["30", "36", "42", "48"],
+      "options": [
+        "30",
+        "36",
+        "42",
+        "48"
+      ],
       "answer": "48"
     },
     {
@@ -21,7 +31,12 @@
       "category": "pattern_recognition",
       "difficulty": 3,
       "instruction": "Find the next number in the sequence: 5, 9, 17, 33, ?",
-      "options": ["49", "57", "65", "69"],
+      "options": [
+        "49",
+        "57",
+        "65",
+        "69"
+      ],
       "answer": "65"
     },
     {
@@ -29,7 +44,11 @@
       "category": "logical_reasoning",
       "difficulty": 1,
       "instruction": "If all engineers are problem-solvers and some problem-solvers are leaders, can we say some engineers are leaders?",
-      "options": ["Yes", "No", "Cannot be determined"],
+      "options": [
+        "Yes",
+        "No",
+        "Cannot be determined"
+      ],
       "answer": "Cannot be determined"
     },
     {
@@ -128,7 +147,12 @@
       "category": "memory_test",
       "difficulty": 1,
       "instruction": "Memorize this sequence: CAT, TREE, MOON. Now, which of these words appeared last?",
-      "options": ["CAT", "TREE", "MOON", "SUN"],
+      "options": [
+        "CAT",
+        "TREE",
+        "MOON",
+        "SUN"
+      ],
       "answer": "MOON"
     },
     {
@@ -136,7 +160,12 @@
       "category": "memory_test",
       "difficulty": 2,
       "instruction": "Memorize this sequence: 7, 3, 9, 1. Now, which of these options shows the correct order?",
-      "options": ["7,3,9,1", "1,9,3,7", "7,9,3,1", "3,7,1,9"],
+      "options": [
+        "7,3,9,1",
+        "1,9,3,7",
+        "7,9,3,1",
+        "3,7,1,9"
+      ],
       "answer": "7,3,9,1"
     },
     {
@@ -157,7 +186,12 @@
       "category": "attention",
       "difficulty": 1,
       "instruction": "Select the ONLY option that contains the letter 'X' exactly two times.",
-      "options": ["AXXB", "XXXA", "ABXC", "XABX"],
+      "options": [
+        "AXXB",
+        "XXXA",
+        "ABXC",
+        "XABX"
+      ],
       "answer": "XABX"
     },
     {
@@ -165,7 +199,12 @@
       "category": "attention",
       "difficulty": 2,
       "instruction": "Which of these strings contains the digit '7' exactly three times?",
-      "options": ["717770", "771270", "707770", "177707"],
+      "options": [
+        "717770",
+        "771270",
+        "707770",
+        "177707"
+      ],
       "answer": "707770"
     },
     {
@@ -173,7 +212,12 @@
       "category": "verbal_reasoning",
       "difficulty": 1,
       "instruction": "Which word is most similar in meaning to HAPPY?",
-      "options": ["SAD", "JOYFUL", "ANGRY", "TIRED"],
+      "options": [
+        "SAD",
+        "JOYFUL",
+        "ANGRY",
+        "TIRED"
+      ],
       "answer": "JOYFUL"
     },
     {
@@ -181,7 +225,12 @@
       "category": "verbal_reasoning",
       "difficulty": 2,
       "instruction": "Which option best completes the analogy? CAREFUL is to RECKLESS as PATIENT is to:",
-      "options": ["CALM", "IMPULSIVE", "KIND", "HAPPY"],
+      "options": [
+        "CALM",
+        "IMPULSIVE",
+        "KIND",
+        "HAPPY"
+      ],
       "answer": "IMPULSIVE"
     },
     {
@@ -189,9 +238,46 @@
       "category": "education",
       "difficulty": 1,
       "type": "single_task",
-      "answer": {},
-      "metrics": ["accuracy", "response_time"]
+      "answer": "20",
+      "metrics": [
+        "accuracy",
+        "response_time"
+      ],
+      "instruction": "A teacher marks homework every day. On Monday she marked 5 books, Tuesday 10, Wednesday 15. How many books will she mark on Thursday?",
+      "options": [
+        "18",
+        "20",
+        "25",
+        "30"
+      ]
+    },
+    {
+      "task_id": "edu_001",
+      "category": "education",
+      "difficulty": 1,
+      "type": "single_task",
+      "instruction": "A student reads 10 pages on Monday, 20 on Tuesday, 30 on Wednesday. How many pages will they read on Thursday if the pattern continues?",
+      "options": [
+        "35",
+        "40",
+        "45",
+        "50"
+      ],
+      "answer": "40"
+    },
+    {
+      "task_id": "edu_002",
+      "category": "education",
+      "difficulty": 2,
+      "type": "single_task",
+      "instruction": "A class has 30 students. 18 passed their exam. What percentage passed?",
+      "options": [
+        "50%",
+        "55%",
+        "60%",
+        "65%"
+      ],
+      "answer": "60%"
     }
   ]
 }
-

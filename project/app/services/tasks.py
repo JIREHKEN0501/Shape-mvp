@@ -1,3 +1,4 @@
+import random
 """
 project/app/services/tasks.py
 
@@ -353,7 +354,7 @@ def _pick_task_for(category: str,
         if int(t.get("difficulty", 1)) == difficulty and t.get("task_id") not in attempted
     ]
     if candidates:
-        return candidates[0]
+        return random.choice(candidates)
 
     # 2) Same category, any difficulty, not attempted.
     candidates = [
@@ -361,7 +362,7 @@ def _pick_task_for(category: str,
         if t.get("task_id") not in attempted
     ]
     if candidates:
-        return candidates[0]
+        return random.choice(candidates)
 
     # 3) Any task in the category.
     if tasks_in_cat:
