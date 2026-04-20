@@ -69,7 +69,7 @@ def _extract_task_attempts(records: List[Dict[str, Any]]) -> List[Dict[str, Any]
     """
     attempts: List[Dict[str, Any]] = []
     for r in records:
-        if "task_id" in r and "answer" in r:
+        if ("task_id" in r and "answer" in r) or r.get("event_type") == "task_attempt":
             attempts.append(r)
     return attempts
 
@@ -128,10 +128,16 @@ def _augment_attempts_with_metrics_and_time(
     enriched: List[Dict[str, Any]] = []
 
     for att in attempts:
-        metrics = evaluate_task_answer(att)
-        is_correct = metrics.get("is_correct")
-        category = metrics.get("category")
-        difficulty = metrics.get("difficulty")
+        pre = att.get("metrics", {})
+        if pre.get("is_correct") is not None:
+            is_correct = pre.get("is_correct")
+            category = pre.get("category")
+            difficulty = pre.get("difficulty")
+        else:
+            metrics = evaluate_task_answer(att)
+            is_correct = metrics.get("is_correct")
+            category = metrics.get("category")
+            difficulty = metrics.get("difficulty")
 
         # compute response time from nearest session_start
         sess = _match_session_for_attempt(att, sessions)
@@ -368,7 +374,7 @@ def generate_global_summary() -> Dict[str, Any]:
         if not pid:
             continue
         # we only extract single-task attempts here
-        if "task_id" in r and "answer" in r:
+        if ("task_id" in r and "answer" in r) or r.get("event_type") == "task_attempt":
             per_participant_attempts.setdefault(pid, []).append(r)
 
     # compute per-participant accuracy
