@@ -1,6 +1,9 @@
 # project/app/routes/submit_result.py
 
 from flask import Blueprint, request, jsonify
+import json
+import time
+import os
 
 from project.app.services.tasks import get_task
 from project.app.core.scoring import score_task_attempt
@@ -30,10 +33,18 @@ def submit_result():
         submitted_at_ms=payload.get("submitted_at_ms"),
     )
 
-    return jsonify(
-        {
-            "ok": True,
+    try:
+        log_entry = {
+            "ts": time.time(),
+            "event_type": "task_attempt",
+            "participant_id": payload.get("participant_id"),
+            "task_id": task_id,
             "metrics": metrics,
         }
-    ), 200
+        os.makedirs("logs", exist_ok=True)
+        with open("logs/data_log.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception:
+        pass
 
+    return jsonify({"ok": True, "metrics": metrics}), 200
