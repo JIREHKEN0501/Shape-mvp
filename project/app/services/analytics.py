@@ -15,6 +15,7 @@ import os
 from typing import List, Dict, Any, Optional
 
 from project.app.helpers import DATA_LOG
+from project.app.config import HESITATION_THRESHOLD
 from project.app.services.metrics import evaluate_task_answer
 from project.app.core.insights import generate_insights
 from project.app.services.confidence import evaluate_confidence
@@ -231,9 +232,24 @@ def _aggregate_by_category(enriched_attempts: List[Dict[str, Any]]) -> Dict[str,
                 "correct": 0,
                 "wrong": 0,
                 "avg_response_time_s": None,
+                "total_retries": 0,
+                "hesitation_events": 0,
             },
         )
         entry["attempts"] += 1
+
+        raw = att.get("raw", {})
+        metrics = raw.get("metrics", {}) if raw else att.get("metrics", {})
+
+        # Normalize retries — first click is always 1
+        retries = metrics.get("retries") or 0
+        effective_retries = max(0, retries - 1)
+        entry["total_retries"] += effective_retries
+
+        # Normalize hesitation — threshold filter
+        hesitation = metrics.get("hesitation") or 0
+        if hesitation >= HESITATION_THRESHOLD:
+            entry["hesitation_events"] += 1
         if att.get("is_correct") is True:
             entry["correct"] += 1
         else:
@@ -254,6 +270,8 @@ def _aggregate_by_category(enriched_attempts: List[Dict[str, Any]]) -> Dict[str,
 
         if entry["attempts"] > 0:
             entry["accuracy"] = entry["correct"] / float(entry["attempts"])
+            entry["avg_retries"] = entry["total_retries"] / entry["attempts"]
+            entry["hesitation_rate"] = entry["hesitation_events"] / entry["attempts"]
         else:
             entry["accuracy"] = None
 
@@ -421,4 +439,3 @@ def generate_global_summary() -> Dict[str, Any]:
         "by_category": by_category,
         "most_attempted_tasks": most_attempted[:5],
     }
-
