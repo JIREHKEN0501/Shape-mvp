@@ -18,3 +18,7 @@ HESITATION_THRESHOLD = 4
 # Minimum effective retries to flag as a retry signal.
 # effective_retries = raw_retries - 1 (first click is always 1)
 RETRY_THRESHOLD = 1
+
+# Behavioral signature matrix thresholds
+HESITATION_HIGH_THRESHOLD = 0.5
+ACCURACY_HIGH_THRESHOLD = 0.7

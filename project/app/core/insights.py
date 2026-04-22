@@ -85,15 +85,27 @@ def generate_insights(summary: Dict[str, Any]) -> Dict[str, Any]:
                 "confidence": confidence,
             })
 
-        # Behavioral pattern (contextual)
-        avg_seconds = stats.get("avg_response_time_s")
-        if avg_seconds is not None and overall_avg_latency is not None:
-            if avg_seconds > overall_avg_latency * 1.2:
-                pattern = f"Average response time of {avg_seconds:.1f}s is slower relative to other categories, suggesting higher cognitive load"
-            elif avg_seconds < overall_avg_latency * 0.8:
-                pattern = f"Average response time of {avg_seconds:.1f}s is faster relative to other categories, suggesting stronger familiarity or confidence"
+        # Behavioral signature (hesitation × accuracy)
+        hesitation_rate = stats.get("hesitation_rate", 0)
+
+        if accuracy is not None and attempts < 2:
+            insights["patterns"].append({
+                "category": category,
+                "pattern": "Limited data — behavioral pattern not yet characterised. More attempts needed for reliable interpretation.",
+            })
+        elif accuracy is not None:
+            high_hes = hesitation_rate >= 0.5
+            high_acc = accuracy >= 0.7
+
+            if high_hes and high_acc:
+                pattern = "Deliberate and accurate — explores options before committing and arrives at correct responses, suggesting a careful reasoning style"
+            elif high_hes and not high_acc:
+                pattern = "High uncertainty — explores multiple options but struggles to identify correct responses, suggesting this area may be challenging"
+            elif not high_hes and high_acc:
+                pattern = "Confident and accurate — responds quickly and correctly, suggesting strong familiarity with this domain"
             else:
-                pattern = f"Response time of {avg_seconds:.1f}s is consistent with overall session behavior"
+                pattern = "Fast but inaccurate responses may indicate a tendency toward guessing or incomplete understanding"
+
             insights["patterns"].append({
                 "category": category,
                 "pattern": pattern,
