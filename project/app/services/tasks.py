@@ -381,6 +381,12 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     """
     # 1) Load participant history from logs.
     events = _load_participant_events(participant_id)
+    # Extract previously seen task IDs
+    seen_ids = {
+        e.get("task_id")
+        for e in events
+        if e.get("event_type") == "task_attempt" and e.get("task_id")
+    }
     summary = _summarise_history(events)
 
     # 2) Build an index over the current catalog.
@@ -393,9 +399,53 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     )
 
     # 4) Pick a concrete task.
-    raw_task = _pick_task_for(chosen_category, chosen_difficulty, summary, by_category)
+    
+
+    max_attempts = 10
+    raw_task = None
+
+    for _ in range(max_attempts):
+        candidate = _pick_task_for(
+            chosen_category,
+            chosen_difficulty,
+            summary,
+            by_category
+        )
+
+        if (
+            candidate["task_id"] not in seen_ids
+            and candidate.get("instruction")
+            and candidate.get("options")
+        ):
+            raw_task = candidate
+            break
+
+    # Fallback if all tasks are exhausted
+    if raw_task is None:
+        return {
+            "ok": False,
+            "message": "No new tasks available for this participant"
+        }
+
+    # 🚨 HARD GUARD — never send broken task to frontend
+    if not raw_task.get("instruction") or not raw_task.get("options"):
+        print("⚠️ INVALID TASK DETECTED:", raw_task)
+        return {
+            "ok": False,
+            "message": "Invalid task encountered"
+        }
 
     task_payload = _sanitize_task(raw_task, include_answer=False)
+
+    # 🚨 SECOND GUARD (after sanitize, just in case)
+    if not task_payload.get("instruction") or not task_payload.get("options"):
+        print("⚠️ SANITIZE BROKE TASK:", task_payload)
+        return {
+            "ok": False,
+            "message": "Sanitized task invalid"
+        }
+
+
     task_payload["meta"] = {
         "strategy": "adaptive_v1",
         "chosen_category": chosen_category,

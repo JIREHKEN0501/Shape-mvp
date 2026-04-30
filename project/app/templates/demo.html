@@ -106,7 +106,7 @@
     </div>
 
     <div id="status" class="status">Initializing…</div>
-
+    <div class="status"><strong>Session ID:</strong> <span id="pid">...</span></div>
     <div id="question" class="question"></div>
     <div id="meta" class="meta"></div>
 
@@ -202,7 +202,12 @@
           return;
         }
         participantId = data.participant_id;
-        setStatus("Session started · ID: " + participantId);
+
+        // Show ID clearly
+        document.getElementById("pid").textContent = participantId;
+
+        // Keep status clean
+        setStatus("Session started. Answer the questions.");
         await loadNextTask();
       } catch (err) {
         console.error(err);
@@ -222,8 +227,22 @@
       try {
         const resp = await fetch("/tasks/next/" + encodeURIComponent(participantId));
         const data = await resp.json();
-        if (!data.ok || !data.task) {
-          setStatus("No suitable next task.");
+        // 🚨 Handle end-of-session properly
+        if (!data.ok) {
+          setStatus("Session complete.");
+
+          const summaryResp = await fetch("/metrics/summary/" + encodeURIComponent(participantId));
+          const summaryData = await summaryResp.json();
+
+          renderSummary(summaryData.summary);
+
+          return;
+
+        }
+
+        // extra safety (shouldn't happen but good to keep)
+        if (!data.task) {
+          setStatus("No task returned.");
           renderTask(null);
           return;
         }
@@ -282,7 +301,51 @@
         busy = false;
       }
     }
+  
+    function renderSummary(summary) {
+      const qEl = document.getElementById("question");
+      const metaEl = document.getElementById("meta");
+      const optionsEl = document.getElementById("options");
 
+      qEl.textContent = "Session complete.";
+
+      metaEl.innerHTML = `
+        <div><strong>What you did well:</strong> 
+          ${summary.strengths?.length 
+            ? "You showed strong performance in " + summary.strengths.join(", ") + "." 
+            : "No strong patterns detected yet."}
+        </div>
+
+        <div><strong>Where you can improve:</strong> 
+          ${summary.weaknesses?.length 
+            ? "You may want to focus more on " + summary.weaknesses.join(", ") + "." 
+            : "No major weaknesses observed."}
+        </div>
+
+        <div><strong>How you approached tasks:</strong> 
+          ${summary.thinking_style === "deliberate" 
+            ? "You tend to think carefully before answering, prioritizing accuracy."
+            : summary.thinking_style === "fast and confident"
+            ? "You respond quickly and confidently."
+            : "You show a balanced approach between speed and accuracy."}
+        </div>
+
+        <div><strong>Confidence in this result:</strong> 
+          ${summary.confidence === "high"
+            ? "High — enough data was collected to make this reliable."
+            : "Moderate — more data would improve accuracy."}
+        </div>
+
+        <hr style="margin: 10px 0;">
+
+        <div><strong>Consistency:</strong> ${summary.consistency || "N/A"}</div>
+        <div><strong>Work style:</strong> ${summary.speed_style || "N/A"}</div>
+        <div><strong>Performance pattern:</strong> ${summary.stability || "N/A"}</div>
+      `;
+
+      optionsEl.innerHTML = "";
+    }
+ 
     // Kick things off
     document.addEventListener("DOMContentLoaded", () => {
       startSession();

@@ -371,6 +371,61 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
         ],
     }
 
+    # =========================
+    # 🔥 NEW: CONSISTENCY
+    # =========================
+    total = summary.get("total_attempts", 0)
+    correct = summary.get("correct_attempts", 0)
+
+    error_ratio = (total - correct) / total if total else 0
+
+    if error_ratio > 0.4:
+        consistency = "low consistency"
+    elif error_ratio > 0.15:
+        consistency = "moderate consistency"
+    else:
+        consistency = "high consistency"
+
+    # =========================
+    # 🔥 NEW: SPEED STYLE
+    # =========================
+    # use average category response time as proxy
+    response_times = [
+        c.get("avg_response_time_s")
+        for c in summary.get("by_category", {}).values()
+        if c.get("avg_response_time_s") is not None
+    ]
+
+    avg_time = sum(response_times) / len(response_times) if response_times else 0
+
+    if avg_time < 5 and error_ratio > 0.3:
+        speed_style = "fast but error-prone"
+    elif avg_time > 10 and error_ratio < 0.1:
+        speed_style = "slow but highly accurate"
+    elif avg_time < 5 and error_ratio < 0.1:
+        speed_style = "fast and precise"
+    else:
+        speed_style = "balanced pace"
+
+    # =========================
+    # 🔥 NEW: STABILITY
+    # =========================
+    acc_values = [
+        c.get("accuracy")
+        for c in summary.get("by_category", {}).values()
+        if c.get("accuracy") is not None
+    ]
+
+    if acc_values and (max(acc_values) - min(acc_values)) > 0.5:
+        stability = "uneven performance across domains"
+    else:
+        stability = "consistent across domains"
+
+    # Inject into summary
+    summary["consistency"] = consistency
+    summary["speed_style"] = speed_style
+    summary["stability"] = stability
+
     return summary
 
 

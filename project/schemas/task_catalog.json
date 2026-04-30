@@ -187,7 +187,7 @@
       "difficulty": 1,
       "instruction": "Select the ONLY option that contains the letter 'X' exactly two times.",
       "options": [
-        "AXXB",
+        "AXAB",
         "XXXA",
         "ABXC",
         "XABX"
@@ -205,7 +205,7 @@
         "707770",
         "177707"
       ],
-      "answer": "707770"
+      "answer": "771270"
     },
     {
       "task_id": "verbal_001",
@@ -237,25 +237,19 @@
       "task_id": "pattern_completion_v1",
       "category": "education",
       "difficulty": 1,
-      "type": "single_task",
-      "answer": "20",
-      "metrics": [
-        "accuracy",
-        "response_time"
-      ],
       "instruction": "A teacher marks homework every day. On Monday she marked 5 books, Tuesday 10, Wednesday 15. How many books will she mark on Thursday?",
-      "options": [
+      "options": [    
         "18",
         "20",
         "25",
         "30"
-      ]
+      ],
+      "answer": "20"
     },
     {
       "task_id": "edu_001",
       "category": "education",
       "difficulty": 1,
-      "type": "single_task",
       "instruction": "A student reads 10 pages on Monday, 20 on Tuesday, 30 on Wednesday. How many pages will they read on Thursday if the pattern continues?",
       "options": [
         "35",
@@ -269,7 +263,6 @@
       "task_id": "edu_002",
       "category": "education",
       "difficulty": 2,
-      "type": "single_task",
       "instruction": "A class has 30 students. 18 passed their exam. What percentage passed?",
       "options": [
         "50%",

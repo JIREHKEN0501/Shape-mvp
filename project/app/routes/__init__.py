@@ -231,6 +231,14 @@ def tasks_next(participant_id):
     the current TASK_CATALOG to pick a suitable next task.
     """
     task = get_next_task_for_participant(participant_id)
+
+    # 🚨 If no task available (end of session), return cleanly
+    if not task.get("ok", True):
+        return jsonify({
+            "ok": False,
+            "message": task.get("message", "No tasks available")
+        })
+
     return jsonify({"ok": True, "task": task})
 
 
@@ -243,12 +251,12 @@ def metrics_summary(participant_id):
 
     mode = request.args.get("mode", "education")
 
-    summary["system_mode"] = mode
-    summary["mode_disclaimer"] = f"Outputs are interpreted under '{mode}' mode. See system_modes.md."
-    
-    status = 200 if summary.get("has_data") else 404
-    return jsonify(summary), status
-
+    return jsonify({
+        "ok": True,
+        "participant_id":participant_id,
+        "summary": summary,
+        "system_mode": mode
+    }), 200
 
 @main.route("/metrics/global", methods=["GET"])
 def metrics_global():
