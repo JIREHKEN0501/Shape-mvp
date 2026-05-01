@@ -425,6 +425,158 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
     summary["consistency"] = consistency
     summary["speed_style"] = speed_style
     summary["stability"] = stability
+    
+    # =========================
+    # 🔥 NEW: CATEGORY BEHAVIOR
+    # =========================
+    category_behavior = {}
+
+    for a in enriched:
+        cat = a.get("category", "unknown")
+
+        category_behavior.setdefault(cat, {
+            "fast_wrong": 0,
+            "slow_correct": 0,
+            "total": 0
+        })
+
+        latency = a.get("response_time_s", 0) * 1000  # convert to ms
+        correct = a.get("is_correct", False)
+
+        if latency < 6000 and not correct:
+            category_behavior[cat]["fast_wrong"] += 1
+
+        if latency > 12000 and correct:
+            category_behavior[cat]["slow_correct"] += 1
+
+        category_behavior[cat]["total"] += 1
+
+
+    # --- INTERPRET CATEGORY PATTERNS ---
+    category_patterns = []
+
+    for cat, stats in category_behavior.items():
+        if stats["fast_wrong"] > stats["slow_correct"]:
+            pattern = "fast but inaccurate"
+        elif stats["slow_correct"] > stats["fast_wrong"]:
+            pattern = "deliberate and accurate"
+        else:
+            pattern = "balanced"
+
+        category_patterns.append({
+            "category": cat,
+            "pattern": pattern
+        })
+
+    # Inject into summary
+    summary["category_patterns"] = category_patterns
+
+    # =========================
+    # 🔥 CROSS-SIGNAL REASONING
+    # =========================
+    cross_insights = []
+
+    for cp in category_patterns:
+        cat = cp["category"]
+        pattern = cp["pattern"]
+
+        readable_cat = cat.replace("_", " ")
+
+        if pattern == "fast but inaccurate":
+            cross_insights.append(
+                f"Faster responses tend to reduce accuracy in {readable_cat} tasks."
+            )
+
+        elif pattern == "deliberate and accurate":
+            cross_insights.append(
+                f"Taking more time improves accuracy in {readable_cat} tasks."
+            )
+
+        elif pattern == "balanced":
+            continue
+
+    # --- DETECT BEHAVIORAL TENSION ---
+    fast_domains = [
+        cp["category"] for cp in category_patterns
+        if cp["pattern"] == "fast but inaccurate"
+    ]
+
+    behavioral_tension = None
+
+    if fast_domains:
+        readable = ", ".join([d.replace("_", " ") for d in fast_domains])
+        behavioral_tension = f"Speed may be negatively impacting performance in {readable} tasks."
+
+    summary["cross_insights"] = cross_insights
+
+    if behavioral_tension:
+        summary["behavioral_tension"] = behavioral_tension
+
+    # =========================
+    # 🔮 BEHAVIOR PREDICTION
+    # =========================
+
+    prediction = {}
+
+    # --- Likely response style ---
+    # Based on your earlier style + category patterns
+    patterns = [cp["pattern"] for cp in category_patterns]
+
+    fast_count = sum(1 for p in patterns if p == "fast but inaccurate")
+    deliberate_count = sum(1 for p in patterns if p == "deliberate and accurate")
+
+    if not patterns:
+        likely_style = "adaptive"
+    if deliberate_count > fast_count:
+        likely_style = "deliberate"
+    elif fast_count > deliberate_count:
+        likely_style = "fast"
+    else:
+        likely_style = "adaptive"
+    prediction["likely_response_style"] = likely_style
+
+
+    # --- Risk under time pressure ---
+    fast_inaccurate_domains = [
+        cp["category"] for cp in category_patterns
+        if cp["pattern"] == "fast but inaccurate"
+    ]
+
+    if fast_inaccurate_domains:
+        risk = "high"
+    else:
+        risk = "low"
+
+    prediction["risk_under_time_pressure"] = risk
+
+
+    # --- Expected accuracy trend ---
+    # Use consistency + stability signals you already compute
+    consistency = summary.get("consistency", "")
+    stability = summary.get("stability", "")
+
+    if consistency and "high" in consistency and stability and "consistent" in stability:
+        accuracy_trend = "stable"
+    elif consistency and "low" in consistency:
+        accuracy_trend = "variable"
+    else:
+        accuracy_trend = "moderate"
+    
+    prediction["expected_accuracy_trend"] = accuracy_trend
+
+
+    # --- Confidence in prediction ---
+    conf = summary.get("confidence", {}).get("confidence_level")
+
+    if conf == "high":
+        prediction_confidence = "high"
+    else:
+        prediction_confidence = "moderate"
+
+    prediction["confidence"] = prediction_confidence
+
+    # Inject into summary
+    summary["behavior_prediction"] = prediction
 
     return summary
 

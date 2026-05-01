@@ -336,7 +336,8 @@ def _choose_difficulty_for_category(
 def _pick_task_for(category: str,
                    difficulty: int,
                    summary: Dict[str, Any],
-                   by_category: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
+                   by_category: Dict[str, List[Dict[str, Any]]],
+                   prediction: Dict[str, Any]) -> Dict[str, Any]:
     """
     Choose a specific task:
 
@@ -351,7 +352,8 @@ def _pick_task_for(category: str,
     # 1) Same category + difficulty, not attempted.
     candidates = [
         t for t in tasks_in_cat
-        if int(t.get("difficulty", 1)) == difficulty and t.get("task_id") not in attempted
+        if int(t.get("difficulty", 1)) == difficulty
+        and t.get("task_id") not in attempted
     ]
     if candidates:
         return random.choice(candidates)
@@ -363,13 +365,8 @@ def _pick_task_for(category: str,
     ]
     if candidates:
         return random.choice(candidates)
-
-    # 3) Any task in the category.
-    if tasks_in_cat:
-        return tasks_in_cat[0]
-
-    # 4) Last resort: any task in the catalog.
-    return next(iter(_TASK_CATALOG.values()))
+    
+    return None
 
 
 def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
@@ -389,14 +386,38 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     }
     summary = _summarise_history(events)
 
+    # 🔮 Pull prediction signals
+    prediction = summary.get("behavior_prediction", {})
+
+    likely_style = prediction.get("likely_response_style")
+    risk = prediction.get("risk_under_time_pressure")
+    trend = prediction.get("expected_accuracy_trend")
+
     # 2) Build an index over the current catalog.
     by_category = _build_catalog_index()
 
     # 3) Choose category and difficulty.
     chosen_category = _choose_category(summary, by_category)
-    chosen_difficulty = _choose_difficulty_for_category(
+    base_difficulty = _choose_difficulty_for_category(
         chosen_category, summary, by_category
     )
+
+    chosen_difficulty = base_difficulty
+
+    # 🧊 Cold start: no prediction yet
+    if not prediction:
+        chosen_difficulty = 1
+
+    else:
+        # --- Adaptive logic ---
+        if likely_style == "deliberate" and risk == "low":
+            chosen_difficulty = min(base_difficulty + 1, 3)
+
+        elif likely_style == "fast" and risk == "high":
+            chosen_difficulty = max(base_difficulty - 1, 1)
+
+        elif trend == "stable":
+            chosen_difficulty = min(base_difficulty + 1, 3)
 
     # 4) Pick a concrete task.
     
@@ -409,13 +430,18 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
             chosen_category,
             chosen_difficulty,
             summary,
-            by_category
+            by_category,
+            prediction
         )
 
+        # 🚨 NEW: handle None safely
+        if not candidate:
+            break
+
         if (
-            candidate["task_id"] not in seen_ids
-            and candidate.get("instruction")
-            and candidate.get("options")
+           candidate.get("task_id") not in seen_ids
+           and candidate.get("instruction")
+           and candidate.get("options")
         ):
             raw_task = candidate
             break
@@ -447,9 +473,14 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
 
 
     task_payload["meta"] = {
-        "strategy": "adaptive_v1",
+        "strategy": "adaptive_v2",
         "chosen_category": chosen_category,
         "chosen_difficulty": chosen_difficulty,
+        "adaptation": {
+            "likely_style": likely_style,
+            "risk": risk,
+            "trend": trend
+        }
     }
     return task_payload
 
