@@ -228,60 +228,55 @@ def _build_catalog_index() -> Dict[str, List[Dict[str, Any]]]:
 
 def _choose_category(summary: Dict[str, Any],
                      by_category: Dict[str, List[Dict[str, Any]]]) -> str:
-    """
-    Strategy:
-    1. Prefer categories with *fewest attempts* (coverage).
-    2. Among those, prioritise the category with *lowest accuracy*
-       (focus on weaker area).
-    3. If no history at all, just pick the first category in the catalog.
-    """
+
     attempts_by_category = summary["attempts_by_category"]
     correct_by_category = summary["correct_by_category"]
 
-    # No history yet -> just take the first category present in catalog.
+    # 🧊 Cold start — no history yet
     if not attempts_by_category:
-        return next(iter(by_category.keys()))
+        return random.choice(list(by_category.keys()))
 
-    # Step 1: categories with the smallest number of attempts.
-    min_attempts = min(attempts_by_category.values()) if attempts_by_category else 0
-    candidate_cats = [
-        cat for cat, n in attempts_by_category.items() if n == min_attempts
-    ]
+    # --- Compute accuracy per category ---
+    category_scores = {}
 
-    # There might be categories that have *zero* attempts and aren't in the dict yet.
     for cat in by_category.keys():
-        if cat not in attempts_by_category:
-            candidate_cats.append(cat)
-
-    # Deduplicate while preserving order a bit.
-    seen = set()
-    unique_candidates = []
-    for cat in candidate_cats:
-        if cat not in seen:
-            unique_candidates.append(cat)
-            seen.add(cat)
-
-    # Step 2: among candidates, choose the one with the lowest accuracy.
-    best_cat = None
-    best_accuracy = 1.1  # higher than any possible accuracy
-
-    for cat in unique_candidates:
         attempts = attempts_by_category.get(cat, 0)
         correct = correct_by_category.get(cat, 0)
+
         if attempts == 0:
-            accuracy = 0.5  # neutral starting assumption
+            accuracy = 0.5  # neutral baseline
         else:
             accuracy = correct / attempts
 
-        if accuracy < best_accuracy:
-            best_accuracy = accuracy
-            best_cat = cat
+        category_scores[cat] = accuracy
 
-    # Fallback (shouldn't happen, but let's be safe)
-    if not best_cat:
-        best_cat = next(iter(by_category.keys()))
+    # --- Build weights (lower accuracy = higher weight) ---
+    weights = []
 
-    return best_cat
+    for cat, acc in category_scores.items():
+        weight = 1.0 - acc
+
+        # Bonus for unseen categories
+        if attempts_by_category.get(cat, 0) == 0:
+            weight += 0.2
+
+        weights.append((cat, weight))
+
+    # --- Weighted random selection ---
+    total_weight = sum(w for _, w in weights)
+
+    if total_weight == 0:
+        return random.choice(list(by_category.keys()))
+
+    r = random.uniform(0, total_weight)
+    upto = 0
+
+    for cat, w in weights:
+        if upto + w >= r:
+            return cat
+        upto += w
+
+    return weights[-1][0]
 
 
 def _choose_difficulty_for_category(
@@ -419,39 +414,45 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         elif trend == "stable":
             chosen_difficulty = min(base_difficulty + 1, 3)
 
-    # 4) Pick a concrete task.
-    
+    # =========================
+    # 🧠 SESSION TASK POOL
+    # =========================
 
-    max_attempts = 10
-    raw_task = None
+    # Build full task pool
+    all_tasks = []
+    for cat_tasks in by_category.values():
+        for t in cat_tasks:
+            if t.get("instruction") and t.get("options"):
+                all_tasks.append(t)
 
-    for _ in range(max_attempts):
-        candidate = _pick_task_for(
-            chosen_category,
-            chosen_difficulty,
-            summary,
-            by_category,
-            prediction
-        )
+    # Filter out already seen tasks
+    remaining_tasks = [
+        t for t in all_tasks
+        if t.get("task_id") not in seen_ids
+    ]
 
-        # 🚨 NEW: handle None safely
-        if not candidate:
-            break
-
-        if (
-           candidate.get("task_id") not in seen_ids
-           and candidate.get("instruction")
-           and candidate.get("options")
-        ):
-            raw_task = candidate
-            break
-
-    # Fallback if all tasks are exhausted
-    if raw_task is None:
+    # End cleanly if none left
+    if not remaining_tasks:
         return {
             "ok": False,
-            "message": "No new tasks available for this participant"
+            "message": "Session complete"
         }
+
+    # Bias toward weaker categories
+    def category_score(task):
+        cat = task["category"]
+        attempts = summary["attempts_by_category"].get(cat, 0)
+        correct = summary["correct_by_category"].get(cat, 0)
+        if attempts == 0:
+            return 0.5
+        return correct / attempts  # lower = weaker
+
+    remaining_tasks.sort(key=category_score)
+
+    # Add light randomness
+    top_slice = remaining_tasks[:5] if len(remaining_tasks) >= 5 else remaining_tasks
+    raw_task = random.choice(top_slice)
+
 
     # 🚨 HARD GUARD — never send broken task to frontend
     if not raw_task.get("instruction") or not raw_task.get("options"):

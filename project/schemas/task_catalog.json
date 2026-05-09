@@ -179,7 +179,7 @@
         "ORANGE and GLASS",
         "CLOUD and KEY"
       ],
-      "answer": "TRAIN and CLOUD"
+      "answer": "CLOUD and KEY"
     },
     {
       "task_id": "attention_001",
@@ -271,6 +271,209 @@
         "65%"
       ],
       "answer": "60%"
+    },
+    {
+      "task_id": "pattern_004",
+      "category": "pattern_recognition",
+      "difficulty": 2,
+      "instruction": "What comes next: 3, 9, 27, 81, ?",
+      "options": ["162", "243", "324", "256"],
+      "answer": "243"
+    },
+    {
+      "task_id": "pattern_005",
+      "category": "pattern_recognition",
+      "difficulty": 3,
+      "instruction": "What comes next: 2, 3, 5, 9, 17, ?",
+      "options": ["25", "33", "31", "29"],
+      "answer": "33"
+    },
+    {
+      "task_id": "pattern_006",
+      "category": "pattern_recognition",
+      "difficulty": 1,
+      "instruction": "What comes next: B, D, F, H, ?",
+      "options": ["I", "J", "K", "L"],
+      "answer": "J"
+    },
+    {
+      "task_id": "attention_003",
+      "category": "attention",
+      "difficulty": 3,
+      "instruction": "How many times does the letter 'E' appear in: EXPERIENCE ENHANCES EXPERTISE?",
+      "options": ["7", "8", "9", "10"],
+      "answer": "9"
+    },
+    {
+      "task_id": "attention_004",
+      "category": "attention",
+      "difficulty": 2,
+      "instruction": "Which number appears exactly three times: 2, 5, 2, 7, 5, 9, 5?",
+      "options": ["2", "5", "7", "9"],
+      "answer": "5"
+    },
+    {
+      "task_id": "attention_005",
+      "category": "attention",
+      "difficulty": 1,
+      "instruction": "How many times does 'S' appear in: SYSTEMS SUCCESS STORY?",
+      "options": ["4", "5", "6", "7"],
+      "answer": "7"
+    },
+    {
+      "task_id": "memory_004",
+      "category": "memory_test",
+      "difficulty": 2,
+      "instruction": "Memorize: 8, 3, 6, 1, 9. What is the second number?",
+      "options": ["3", "6", "8", "1"],
+      "answer": "3"
+    },
+    {
+      "task_id": "memory_005",
+      "category": "memory_test",
+      "difficulty": 3,
+      "instruction": "Remember: CAT=2, DOG=4, BIRD=3. What is DOG + CAT?",
+      "options": ["5", "6", "7", "8"],
+      "answer": "6"
+    },
+    {
+      "task_id": "memory_006",
+      "category": "memory_test",
+      "difficulty": 1,
+      "instruction": "Memorize: RED, BLUE, GREEN. Which was last?",
+      "options": ["RED", "BLUE", "GREEN", "YELLOW"],
+      "answer": "GREEN"
+    },
+    {
+      "task_id": "logic_004",
+      "category": "logical_reasoning",
+      "difficulty": 2,
+      "instruction": "All cars have wheels. Some vehicles are cars. Which must be true?",
+      "options": ["All vehicles have wheels", "Some vehicles have wheels", "No vehicles have wheels", "Only cars have wheels"],
+      "answer": "Some vehicles have wheels"
+    },
+    {
+      "task_id": "logic_005",
+      "category": "logical_reasoning",
+      "difficulty": 3,
+      "instruction": "All A are B. Some B are C. Which must be true?",
+      "options": ["All A are C", "Some A are C", "Some C are B", "None of the above"],
+      "answer": "Some C are B"
+    },
+    {
+      "task_id": "logic_006",
+      "category": "logical_reasoning",
+      "difficulty": 1,
+      "instruction": "All dogs bark. Rex is a dog. Therefore:",
+      "options": ["Rex may bark", "Rex barks", "Rex cannot bark", "Cannot be determined"],
+      "answer": "Rex barks"
+    },
+    {
+      "task_id": "verbal_003",
+      "category": "verbal_reasoning",
+      "difficulty": 1,
+      "instruction": "Which word is opposite of 'HAPPY'?",
+      "options": ["JOYFUL", "SAD", "EXCITED", "PROUD"],
+      "answer": "SAD"
+    },
+    {
+      "task_id": "verbal_004",
+      "category": "verbal_reasoning",
+      "difficulty": 2,
+      "instruction": "BOOK is to READ as FOOD is to:",
+      "options": ["EAT", "COOK", "BUY", "SERVE"],
+      "answer": "EAT"
+    },
+    {
+      "task_id": "verbal_005",
+      "category": "verbal_reasoning",
+      "difficulty": 3,
+      "instruction": "Which sentence is logically correct?",
+      "options": [
+        "All fruits are vegetables",
+        "Some fruits are sweet",
+        "All sweet things are fruits",
+        "No fruits are edible"
+      ],
+      "answer": "Some fruits are sweet"
+    },
+    {
+      "task_id": "moral_003",
+      "category": "moral_dilemma",
+      "difficulty": 2,
+      "instruction": "You notice a coworker taking credit for your work. What do you do?",
+      "options": [
+        "Ignore it",
+        "Publicly confront them",
+        "Address it privately and clarify roles",
+        "Report immediately"
+      ],
+      "answer": "Address it privately and clarify roles"
+    },
+    {
+      "task_id": "moral_004",
+      "category": "moral_dilemma",
+      "difficulty": 3,
+      "instruction": "You discover a small financial error benefiting you. What is the best action?",
+      "options": [
+        "Keep quiet",
+        "Report it",
+        "Spend it quickly",
+        "Wait to see if noticed"
+      ],
+      "answer": "Report it"
+    },
+    {
+      "task_id": "moral_005",
+      "category": "moral_dilemma",
+      "difficulty": 1,
+      "instruction": "You see someone drop money. What do you do?",
+      "options": [
+        "Take it",
+        "Ignore it",
+        "Return it",
+        "Ask others"
+      ],
+      "answer": "Return it"
+    },
+    {
+      "task_id": "emotion_004",
+      "category": "emotional_intelligence",
+      "difficulty": 2,
+      "instruction": "A teammate is unusually quiet. What should you do?",
+      "options": [
+        "Ignore it",
+        "Ask publicly",
+        "Check in privately",
+        "Report it"
+      ],
+      "answer": "Check in privately"
+    },
+    {
+      "task_id": "emotion_005",
+      "category": "emotional_intelligence",
+      "difficulty": 3,
+      "instruction": "You receive unfair criticism. What is the best response?",
+      "options": [
+        "React emotionally",
+        "Stay calm and clarify",
+        "Ignore completely",
+        "Respond aggressively"
+      ],
+      "answer": "Stay calm and clarify"
+    },
+    {
+      "task_id": "emotion_006",
+      "category": "emotional_intelligence",
+      "difficulty": 1,
+      "instruction": "A colleague is stressed. What helps most?",
+      "options": [
+        "Ignore them",
+        "Offer support",
+        "Add pressure",
+        "Complain"
+      ],
+      "answer": "Offer support"
     }
-  ]
-}
+      ]
+    }

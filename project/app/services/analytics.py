@@ -277,7 +277,14 @@ def _aggregate_by_category(enriched_attempts: List[Dict[str, Any]]) -> Dict[str,
 
     return by_cat
 
-
+def summarize_categories(cats, max_display=4):
+    if len(cats) <= max_display:
+        return ", ".join(cats)
+    else:
+        shown = ", ".join(cats[:max_display])
+        remaining = len(cats) - max_display
+        return f"{shown} and {remaining} more"
+        
 def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
     """
     Compute a detailed summary for a single participant.
@@ -310,6 +317,33 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
     by_task = _aggregate_by_task(enriched)
     by_category = _aggregate_by_category(enriched)
 
+    # =========================
+    # 🔥 EMERGING PATTERNS (NEW)
+    # =========================
+
+    emerging_strengths = []
+    emerging_weaknesses = []
+
+    for cat, data in by_category.items():
+        attempts = data.get("attempts", 0)
+        accuracy = data.get("accuracy")
+
+        if accuracy is None:
+            continue
+
+        # lower threshold than full confidence
+        if attempts >= 2:
+            if accuracy >= 0.75:
+                emerging_strengths.append(cat)
+            elif accuracy <= 0.4:
+                emerging_weaknesses.append(cat)
+
+    # Inject into summary early (so other modules can use it later)
+    summary_emerging = {
+        "emerging_strengths": emerging_strengths,
+        "emerging_weaknesses": emerging_weaknesses
+    }
+
     # activity window
     all_ts = [r.get("ts") for r in records if isinstance(r.get("ts"), (int, float))]
     first_ts = min(all_ts) if all_ts else None
@@ -328,14 +362,110 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
         "last_activity_ts": last_ts,
         "sessions_count": len(sessions),
     }
+    
+    summary.update(summary_emerging)
 
     # Generate explainable insights (Phase 6A)
     try:
         summary["insights"] = generate_insights(summary)
+
+        # 🔥 EXPOSE INSIGHTS FOR FRONTEND
+        ins = summary.get("insights", {})
+
+        # High-confidence strengths only
+        high_conf = [
+            s["category"].replace("_", " ")
+            for s in ins.get("strengths", [])
+            if s.get("confidence") == "high"
+        ]
+
+        summary["strengths"] = high_conf
+        summary["strengths_summary"] = summarize_categories(high_conf)
+
+        summary["weaknesses"] = [
+            g["category"].replace("_", " ")
+            for g in ins.get("growth_areas", [])
+        ]
+
+        summary["patterns"] = ins.get("patterns", [])
+
+        # =========================
+        # 🧠 BEHAVIOR EXPLANATION (CLEAN + DYNAMIC)
+        # =========================
+
+        from collections import defaultdict
+
+        pattern_groups = defaultdict(list)
+
+        for p in summary.get("patterns", []):
+            cat = p.get("category")
+            if not cat:
+                continue
+
+            readable = cat.replace("_", " ")
+            pattern = p.get("pattern", "").lower()
+
+            if "confident and accurate" in pattern:
+                pattern_groups["confident"].append(readable)
+
+            elif "fast but inaccurate" in pattern:
+                pattern_groups["fast"].append(readable)
+
+            elif "deliberate and accurate" in pattern:
+                pattern_groups["deliberate"].append(readable)
+
+            elif "uncertain" in pattern:
+                pattern_groups["uncertain"].append(readable)
+
+        behavior_notes = []
+
+        if pattern_groups["confident"]:
+            behavior_notes.append(
+                f"You consistently demonstrate strong confidence and accuracy across multiple domains, especially in {summarize_categories(pattern_groups['confident'])} tasks."
+            )
+
+        if pattern_groups["deliberate"]:
+            behavior_notes.append(
+                f"You tend to perform better when you take time to think carefully, particularly in {summarize_categories(pattern_groups['deliberate'])} tasks."
+            )
+
+        if pattern_groups["fast"]:
+            behavior_notes.append(
+                f"Quick responses may reduce accuracy in {summarize_categories(pattern_groups['fast'])} tasks."
+            )
+
+        if pattern_groups["uncertain"]:
+            behavior_notes.append(
+                f"There are signs of hesitation or uncertainty in {summarize_categories(pattern_groups['uncertain'])} tasks."
+            )
+
+        summary["behavior_explanation"] = behavior_notes
+
     except Exception:
         summary["insights"] = {
             "notes": ["Insights temporarily unavailable."]
         }
+
+    # =========================
+    # 🔥 INSIGHT AMPLIFICATION
+    # =========================
+
+    insights_text = str(summary.get("insights", ""))
+
+    if not summary.get("insights") or "No strong patterns" in insights_text:
+        if summary.get("emerging_strengths"):
+            summary["insights"] = {
+                "notes": [
+                    f"Early strength emerging in {', '.join(summary['emerging_strengths'])} tasks."
+                ]
+            }
+
+        elif summary.get("emerging_weaknesses"):
+            summary["insights"] = {
+                "notes": [
+                    f"Early difficulty detected in {', '.join(summary['emerging_weaknesses'])} tasks."
+                ]
+            }
 
     # -----------------------------------
     # Phase 6D: Confidence & uncertainty

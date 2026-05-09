@@ -312,7 +312,7 @@
       metaEl.innerHTML = `
         <div><strong>What you did well:</strong> 
           ${summary.strengths?.length 
-            ? "You showed strong performance in " + summary.strengths.join(", ") + "." 
+            ? "You showed strong performance in " + summary.strengths_summary || summary.strengths.join(", ") + "." 
             : "No strong patterns detected yet."}
         </div>
 
@@ -323,11 +323,11 @@
         </div>
 
         <div><strong>How you approached tasks:</strong> 
-          ${summary.thinking_style === "deliberate" 
-            ? "You tend to think carefully before answering, prioritizing accuracy."
-            : summary.thinking_style === "fast and confident"
-            ? "You respond quickly and confidently."
-            : "You show a balanced approach between speed and accuracy."}
+          ${
+            summary.behavior_explanation?.length
+              ? summary.behavior_explanation.join(" ")
+              : "No behavioral patterns detected yet."
+          }
         </div>
 
         <div><strong>Confidence in this result:</strong> 
