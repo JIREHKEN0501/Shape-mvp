@@ -708,6 +708,42 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
     # Inject into summary
     summary["behavior_prediction"] = prediction
 
+    # =========================
+    # 🧠 BEHAVIOR PROFILE
+    # =========================
+
+    behavior_profile = {
+        "patterns": summary.get("patterns", []),
+
+        "category_patterns": summary.get(
+            "category_patterns", []
+        ),
+
+        "explanations": summary.get(
+            "behavior_explanation", []
+        ),
+
+        "cross_domain_insights": summary.get(
+            "cross_insights", []
+        ),
+
+        "behavioral_tension": summary.get(
+            "behavioral_tension"
+        ),
+
+        "prediction": summary.get(
+            "behavior_prediction", {}
+        ),
+
+        "strategy": {
+            "consistency": summary.get("consistency"),
+            "speed_style": summary.get("speed_style"),
+            "stability": summary.get("stability"),
+        }
+    }
+
+    summary["behavior_profile"] = behavior_profile
+
     return summary
 
 
