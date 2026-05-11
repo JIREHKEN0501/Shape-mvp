@@ -20,6 +20,37 @@ from project.app.services.metrics import evaluate_task_answer
 from project.app.core.insights import generate_insights
 from project.app.services.confidence import evaluate_confidence
 
+
+# =========================================================
+# 🧠 Canonical behavioral ontology
+# =========================================================
+
+BEHAVIOR_ONTOLOGY = {
+
+    "processing_style": [
+        "fast",
+        "deliberate",
+        "balanced"
+    ],
+
+    "accuracy_profile": [
+        "accurate",
+        "inconsistent",
+        "error_prone"
+    ],
+
+    "stability_profile": [
+        "stable",
+        "variable"
+    ],
+
+    "confidence_profile": [
+        "high_confidence",
+        "moderate_confidence",
+        "low_confidence"
+    ]
+}
+
 def _load_all_records() -> List[Dict[str, Any]]:
     """
     Load all records from the main data log.
@@ -277,6 +308,51 @@ def _aggregate_by_category(enriched_attempts: List[Dict[str, Any]]) -> Dict[str,
 
     return by_cat
 
+def _map_pattern_to_ontology(pattern: str) -> Dict[str, str]:
+    """
+    Normalize freeform behavioral interpretations
+    into canonical ontology terms.
+    """
+
+    p = (pattern or "").lower()
+
+    result = {
+        "processing_style": "balanced",
+        "accuracy_profile": "accurate",
+        "stability_profile": "stable",
+        "confidence_profile": "moderate_confidence"
+    }
+
+    # -----------------------------
+    # Processing style
+    # -----------------------------
+    if "fast" in p:
+        result["processing_style"] = "fast"
+
+    elif "deliberate" in p:
+        result["processing_style"] = "deliberate"
+
+    # -----------------------------
+    # Accuracy profile
+    # -----------------------------
+    if "inaccurate" in p:
+        result["accuracy_profile"] = "error_prone"
+
+    elif "accurate" in p:
+        result["accuracy_profile"] = "accurate"
+
+    # -----------------------------
+    # Confidence profile
+    # -----------------------------
+    if "confident" in p:
+        result["confidence_profile"] = "high_confidence"
+
+    elif "uncertain" in p:
+        result["confidence_profile"] = "low_confidence"
+
+    return result
+
+
 def summarize_categories(cats, max_display=4):
     if len(cats) <= max_display:
         return ", ".join(cats)
@@ -285,6 +361,143 @@ def summarize_categories(cats, max_display=4):
         remaining = len(cats) - max_display
         return f"{shown} and {remaining} more"
         
+def _analyze_temporal_behavior(
+    enriched_attempts: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Observe behavioral trends across attempt order.
+
+    IMPORTANT:
+    This models session dynamics only.
+    It does NOT infer permanent traits.
+    """
+
+    if len(enriched_attempts) < 4:
+        return {
+            "status": "insufficient_data"
+        }
+
+    # -----------------------------------
+    # Sort chronologically
+    # -----------------------------------
+    attempts = sorted(
+        enriched_attempts,
+        key=lambda x: x.get("ts", 0)
+    )
+
+    midpoint = len(attempts) // 2
+
+    early = attempts[:midpoint]
+    late = attempts[midpoint:]
+
+    # -----------------------------------
+    # Accuracy trend
+    # -----------------------------------
+    def accuracy(block):
+        if not block:
+            return 0
+
+        correct = sum(
+            1 for a in block
+            if a.get("is_correct") is True
+        )
+
+        return correct / len(block)
+
+    early_acc = accuracy(early)
+    late_acc = accuracy(late)
+
+    if late_acc > early_acc + 0.15:
+        accuracy_trend = "improving"
+
+    elif late_acc < early_acc - 0.15:
+        accuracy_trend = "declining"
+
+    else:
+        accuracy_trend = "stable"
+
+    # -----------------------------------
+    # Latency trend
+    # -----------------------------------
+    def avg_latency(block):
+        vals = [
+            a.get("response_time_s")
+            for a in block
+            if isinstance(a.get("response_time_s"), (int, float))
+        ]
+
+        if not vals:
+            return 0
+
+        return sum(vals) / len(vals)
+
+    early_latency = avg_latency(early)
+    late_latency = avg_latency(late)
+
+    if late_latency < early_latency * 0.8:
+        latency_trend = "speeding_up"
+
+    elif late_latency > early_latency * 1.2:
+        latency_trend = "slowing_down"
+
+    else:
+        latency_trend = "stable"
+
+    # -----------------------------------
+    # Confidence trend
+    # -----------------------------------
+    retry_values = []
+
+    for a in attempts:
+        raw = a.get("raw", {})
+        metrics = raw.get("metrics", {})
+
+        retries = metrics.get("retries", 1)
+        retry_values.append(retries)
+
+    if retry_values:
+        retry_variance = max(retry_values) - min(retry_values)
+
+        if retry_variance <= 1:
+            confidence_trend = "stabilizing"
+        else:
+            confidence_trend = "fluctuating"
+
+    else:
+        confidence_trend = "unknown"
+
+    # -----------------------------------
+    # Fatigue risk
+    # -----------------------------------
+    fatigue_risk = "low"
+
+    if (
+        accuracy_trend == "declining"
+        and latency_trend == "slowing_down"
+    ):
+        fatigue_risk = "elevated"
+
+    elif (
+        latency_trend == "slowing_down"
+        or confidence_trend == "fluctuating"
+    ):
+        fatigue_risk = "moderate"
+
+    return {
+        "status": "ok",
+
+        "accuracy_trend": accuracy_trend,
+        "latency_trend": latency_trend,
+        "confidence_trend": confidence_trend,
+        "fatigue_risk": fatigue_risk,
+
+        "trajectory_note": (
+            "Temporal observations describe session-level behavioral dynamics "
+            "and should not be interpreted as fixed personal characteristics."
+        )
+    }
+
+
 def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
     """
     Compute a detailed summary for a single participant.
@@ -602,6 +815,100 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
     summary["category_patterns"] = category_patterns
 
     # =========================
+    # 🧠 RESOLVED BEHAVIOR PATTERNS
+    # =========================
+
+    resolved_behavior_patterns = []
+
+    insight_patterns = {
+        p.get("category"): p.get("pattern")
+        for p in summary.get("patterns", [])
+    }
+
+    category_pattern_map = {
+        p.get("category"): p.get("pattern")
+        for p in category_patterns
+    }
+
+    all_categories = set(
+        insight_patterns.keys()
+    ) | set(
+        category_pattern_map.keys()
+    )
+
+    for cat in all_categories:
+
+        insight_pattern = insight_patterns.get(cat)
+        latency_pattern = category_pattern_map.get(cat)
+
+        interpretation = None
+        confidence = "moderate"
+
+        # -----------------------------
+        # Agreement
+        # -----------------------------
+        if insight_pattern and latency_pattern:
+
+            if (
+                "accurate" in insight_pattern.lower()
+                and "accurate" in latency_pattern.lower()
+            ):
+                interpretation = (
+                    "consistent_accuracy_behavior"
+                )
+                confidence = "high"
+
+            elif (
+                "fast" in latency_pattern.lower()
+            ):
+                interpretation = (
+                    "speed_accuracy_tension"
+                )
+
+            elif (
+                "deliberate" in latency_pattern.lower()
+            ):
+                interpretation = (
+                    "deliberate_reasoning_strength"
+                )
+
+        # -----------------------------
+        # Fallbacks
+        # -----------------------------
+        if interpretation is None:
+
+            if latency_pattern:
+                interpretation = latency_pattern
+
+            elif insight_pattern:
+                interpretation = insight_pattern
+
+            else:
+                interpretation = "unknown"
+
+        ontology = _map_pattern_to_ontology(
+            f"{insight_pattern} {latency_pattern}"
+        )
+
+        resolved_behavior_patterns.append({
+            "category": cat,
+            "interpretation": interpretation,
+
+            "ontology": ontology,
+
+            "evidence": {
+                "insight_pattern": insight_pattern,
+                "latency_pattern": latency_pattern,
+            },
+
+            "confidence": confidence
+        })
+
+    summary["resolved_behavior_patterns"] = (
+        resolved_behavior_patterns
+    )
+
+    # =========================
     # 🔥 CROSS-SIGNAL REASONING
     # =========================
     cross_insights = []
@@ -743,6 +1050,19 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
     }
 
     summary["behavior_profile"] = behavior_profile
+
+    # =====================================
+    # ⏳ TEMPORAL BEHAVIOR OBSERVATION
+    # =====================================
+    try:
+        summary["temporal_behavior"] = (
+            _analyze_temporal_behavior(enriched)
+        )
+
+    except Exception:
+        summary["temporal_behavior"] = {
+            "status": "analysis_unavailable"
+        }
 
     return summary
 

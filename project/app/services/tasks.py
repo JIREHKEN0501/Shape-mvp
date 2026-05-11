@@ -463,6 +463,14 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     # 🔮 Pull prediction signals
     prediction = summary.get("behavior_prediction", {})
 
+    # ⏳ Temporal behavioral signals
+    temporal = summary.get("temporal_behavior", {})
+
+    fatigue_risk = temporal.get("fatigue_risk")
+    latency_trend = temporal.get("latency_trend")
+    accuracy_trend = temporal.get("accuracy_trend")
+    confidence_trend = temporal.get("confidence_trend")
+
     # 🧠 Behavioral adaptation strategy
     behavior_strategy = choose_behavior_strategy(summary)
 
@@ -503,6 +511,50 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         # Keep user stable
         chosen_difficulty = min(max(base_difficulty, 1), 2)
         difficulty_adjustment = chosen_difficulty - base_difficulty
+
+    # =====================================
+    # ⏳ TEMPORAL-AWARE ADAPTATION
+    # =====================================
+
+    # Fatigue stabilization
+    if fatigue_risk == "high":
+        chosen_difficulty = max(
+            chosen_difficulty - 1,
+            1
+        )
+        difficulty_adjustment = (
+            chosen_difficulty - base_difficulty
+        )
+
+    # Slowing cognition stabilization
+    if latency_trend == "slowing_down":
+        chosen_difficulty = max(
+            chosen_difficulty - 1,
+            1
+        )
+        difficulty_adjustment = (
+            chosen_difficulty - base_difficulty
+        )
+
+    # Stable/improving trajectory escalation
+    if accuracy_trend in ["stable", "improving"]:
+        chosen_difficulty = min(
+            chosen_difficulty + 1,
+            3
+        )
+        difficulty_adjustment = (
+            chosen_difficulty - base_difficulty
+        )
+
+    # Confidence instability stabilization
+    if confidence_trend == "fluctuating":
+        chosen_difficulty = min(
+            max(chosen_difficulty, 1),
+            2
+        )
+        difficulty_adjustment = (
+            chosen_difficulty - base_difficulty
+        )
 
     # 🧊 Cold start safety
     if not prediction:
