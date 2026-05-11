@@ -27,6 +27,59 @@ _TASK_CATALOG: Dict[str, Dict[str, Any]] = {}
 _CACHE_LOADED: bool = False
 
 
+# ---------------------------------------------------------------------------
+# Adaptive orchestration configuration
+# ---------------------------------------------------------------------------
+
+ROUTING_WEIGHTS = {
+    "target_category": 4,
+    "exact_difficulty": 3,
+    "near_difficulty": 1,
+    "weakness_bonus_multiplier": 3,
+
+    "precision_bonus": 2,
+    "complexity_bonus": 2,
+    "stabilization_bonus": 1,
+}
+
+
+STRATEGIES = {
+    "precision": {
+        "name": "precision_reinforcement",
+        "reason": "fast_but_inaccurate",
+        "bonus_categories": [
+            "attention",
+            "logical_reasoning"
+        ]
+    },
+
+    "complexity": {
+        "name": "complexity_escalation",
+        "reason": "deliberate_and_accurate",
+        "min_difficulty": 2
+    },
+
+    "stabilization": {
+        "name": "confidence_stabilization",
+        "reason": "uncertainty_detected",
+        "max_difficulty": 2
+    },
+
+    "balanced": {
+        "name": "balanced_adaptation",
+        "reason": "no_strong_behavior_detected"
+    }
+}
+
+
+STRATEGY_KEYS = {
+    "precision": STRATEGIES["precision"]["name"],
+    "complexity": STRATEGIES["complexity"]["name"],
+    "stabilization": STRATEGIES["stabilization"]["name"],
+    "balanced": STRATEGIES["balanced"]["name"],
+}
+
+
 def _load_tasks_from_json() -> None:
     """
     Load tasks from the JSON catalog into the in-memory _TASK_CATALOG.
@@ -363,6 +416,32 @@ def _pick_task_for(category: str,
     
     return None
 
+def choose_behavior_strategy(summary: Dict[str, Any]) -> Dict[str, str]:
+    """
+    Determine adaptive behavioral strategy
+    based on observed participant patterns.
+    """
+
+    patterns = summary.get("patterns", [])
+
+    for p in patterns:
+        text = p.get("pattern", "").lower()
+
+        # ⚡ Fast but inaccurate
+        if "fast but inaccurate" in text:
+            return STRATEGIES["precision"]
+
+        # 🧠 Deliberate and accurate
+        elif "deliberate and accurate" in text:
+            return STRATEGIES["complexity"]
+
+        # ❓ Uncertainty / hesitation
+        elif "uncertain" in text or "hesitation" in text:
+            return STRATEGIES["stabilization"]
+
+    # ✅ Default strategy
+    return STRATEGIES["balanced"]
+
 
 def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     """
@@ -384,6 +463,12 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     # 🔮 Pull prediction signals
     prediction = summary.get("behavior_prediction", {})
 
+    # 🧠 Behavioral adaptation strategy
+    behavior_strategy = choose_behavior_strategy(summary)
+
+    strategy_name = behavior_strategy["name"]
+    strategy_reason = behavior_strategy["reason"]
+
     likely_style = prediction.get("likely_response_style")
     risk = prediction.get("risk_under_time_pressure")
     trend = prediction.get("expected_accuracy_trend")
@@ -398,21 +483,31 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     )
 
     chosen_difficulty = base_difficulty
+    difficulty_adjustment = 0
 
-    # 🧊 Cold start: no prediction yet
+    # =====================================
+    # 🧠 Behavior-driven strategy adjustment
+    # =====================================
+
+    if strategy_name == STRATEGY_KEYS["precision"]:
+        # Slow down escalation
+        chosen_difficulty = max(base_difficulty - 1, 1)
+        difficulty_adjustment = chosen_difficulty - base_difficulty
+
+    elif strategy_name == STRATEGY_KEYS["complexity"]:
+        # Encourage deeper challenge
+        chosen_difficulty = min(base_difficulty + 1, 3)
+        difficulty_adjustment = chosen_difficulty - base_difficulty
+
+    elif strategy_name == STRATEGY_KEYS["stabilization"]:
+        # Keep user stable
+        chosen_difficulty = min(max(base_difficulty, 1), 2)
+        difficulty_adjustment = chosen_difficulty - base_difficulty
+
+    # 🧊 Cold start safety
     if not prediction:
         chosen_difficulty = 1
-
-    else:
-        # --- Adaptive logic ---
-        if likely_style == "deliberate" and risk == "low":
-            chosen_difficulty = min(base_difficulty + 1, 3)
-
-        elif likely_style == "fast" and risk == "high":
-            chosen_difficulty = max(base_difficulty - 1, 1)
-
-        elif trend == "stable":
-            chosen_difficulty = min(base_difficulty + 1, 3)
+        difficulty_adjustment = chosen_difficulty - base_difficulty
 
     # =========================
     # 🧠 SESSION TASK POOL
@@ -438,21 +533,93 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
             "message": "Session complete"
         }
 
-    # Bias toward weaker categories
-    def category_score(task):
+    # =====================================
+    # 🧠 Adaptive scoring layer
+    # =====================================
+    def task_score(task):
+        score = 0
+        reasons = []
+
         cat = task["category"]
+        diff = int(task.get("difficulty", 1))
+
+        # -----------------------------
+        # Category targeting priority
+        # -----------------------------
+        if cat == chosen_category:
+            score += ROUTING_WEIGHTS["target_category"]
+            reasons.append("Category targeting priority (+4)")
+
+        # -----------------------------
+        # Weaker categories get priority
+        # -----------------------------
         attempts = summary["attempts_by_category"].get(cat, 0)
         correct = summary["correct_by_category"].get(cat, 0)
+
         if attempts == 0:
-            return 0.5
-        return correct / attempts  # lower = weaker
+            accuracy = 0.5
+        else:
+            accuracy = correct / attempts
 
-    remaining_tasks.sort(key=category_score)
+        weakness_bonus = round(
+            (1.0 - accuracy)
+            * ROUTING_WEIGHTS["weakness_bonus_multiplier"],
+            2
+        )
+        score += weakness_bonus
 
-    # Add light randomness
+        if weakness_bonus > 0:
+            reasons.append(
+                f"Weak category reinforcement (+{weakness_bonus})"
+            )
+ 
+        # -----------------------------
+        # Match chosen difficulty
+        # -----------------------------
+        if diff == chosen_difficulty:
+            score += ROUTING_WEIGHTS["exact_difficulty"]
+            reasons.append("Exact difficulty match (+3)")
+
+        elif abs(diff - chosen_difficulty) == 1:
+            score += ROUTING_WEIGHTS["near_difficulty"]
+            reasons.append("Near difficulty match (+1)")
+
+        # -----------------------------
+        # Behavior strategy influence
+        # -----------------------------
+        if strategy_name == STRATEGY_KEYS["precision"]:
+            if cat in ["attention", "logical_reasoning"]:
+                score += ROUTING_WEIGHTS["precision_bonus"]
+                reasons.append(
+                    "Precision reinforcement target (+2)"
+                )
+
+        elif strategy_name == STRATEGY_KEYS["complexity"]:
+            if diff >= 2:
+                score += ROUTING_WEIGHTS["complexity_bonus"]
+                reasons.append(
+                    "Complexity escalation bonus (+2)"
+                )
+
+        elif strategy_name == STRATEGY_KEYS["stabilization"]:
+            if diff <= 2:
+                score += ROUTING_WEIGHTS["stabilization_bonus"]
+                reasons.append(
+                    "Confidence stabilization bonus (+1)"
+                )
+              
+        task["_selection_score"] =round(score, 2)
+        task["_selection_reasons"] = reasons
+        return score
+
+
+    # Rank tasks by adaptive score
+    remaining_tasks.sort(key=task_score, reverse=True)
+
+    # Add light randomness to avoid predictability
     top_slice = remaining_tasks[:5] if len(remaining_tasks) >= 5 else remaining_tasks
-    raw_task = random.choice(top_slice)
 
+    raw_task = random.choice(top_slice)
 
     # 🚨 HARD GUARD — never send broken task to frontend
     if not raw_task.get("instruction") or not raw_task.get("options"):
@@ -475,9 +642,26 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
 
     task_payload["meta"] = {
         "strategy": "adaptive_v2",
-        "chosen_category": chosen_category,
-        "chosen_difficulty": chosen_difficulty,
+
+        "routing": {
+            "target_category": chosen_category,
+            "selected_category": raw_task.get("category"),
+
+            "selection_score": raw_task.get("_selection_score"),
+
+            "selection_reasons": raw_task.get("_selection_reasons", [])
+        },
+
+        "difficulty": {
+            "base": base_difficulty,
+            "chosen": chosen_difficulty,
+            "adjustment": difficulty_adjustment
+        },
+
         "adaptation": {
+            "behavior_strategy": strategy_name,
+            "strategy_reason": strategy_reason,
+
             "likely_style": likely_style,
             "risk": risk,
             "trend": trend
