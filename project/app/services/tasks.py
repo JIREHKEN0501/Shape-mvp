@@ -166,6 +166,31 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+from project.app.services.routing.signal_extractor import (
+    extract_routing_signals
+)
+
+from project.app.services.routing.signal_normalizer import (
+    normalize_signals
+)
+
+from project.app.services.routing.signal_arbitrator import (
+    SignalArbitrator
+)
+
+from project.app.services.routing.priority_resolver import (
+    resolve_signal_priorities
+)
+
+from project.app.services.routing.routing_trace import (
+    generate_routing_trace
+)
+
+from project.app.services.routing.routing_trace_store import (
+    persist_routing_trace
+)
+
+
 
 def _project_root() -> Path:
     """
@@ -474,6 +499,36 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     # 🧠 Behavioral adaptation strategy
     behavior_strategy = choose_behavior_strategy(summary)
 
+    # =====================================
+    # 🧠 Routing orchestration pipeline
+    # =====================================
+
+    routing_signals = extract_routing_signals(summary)
+
+    normalized_signals = normalize_signals(
+        routing_signals
+    )
+
+    arbitrator = SignalArbitrator()
+
+    arbitration_result = arbitrator.resolve(
+        normalized_signals
+    )
+
+    resolved_routing = resolve_signal_priorities(
+        arbitration_result
+    )
+
+    routing_trace = generate_routing_trace(
+        normalized_signals,
+        resolved_routing
+    )
+
+    persist_routing_trace(
+        participant_id,
+        routing_trace
+    )
+
     strategy_name = behavior_strategy["name"]
     strategy_reason = behavior_strategy["reason"]
 
@@ -560,6 +615,32 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     if not prediction:
         chosen_difficulty = 1
         difficulty_adjustment = chosen_difficulty - base_difficulty
+
+    # =====================================
+    # 🧠 Governed orchestration overrides
+    # =====================================
+
+    if resolved_routing.get("stabilize"):
+        chosen_difficulty = min(
+            max(chosen_difficulty, 1),
+            2
+        )
+
+    if resolved_routing.get("reduce_difficulty"):
+        chosen_difficulty = max(
+            chosen_difficulty - 1,
+            1
+        )
+
+    if resolved_routing.get("increase_difficulty"):
+        chosen_difficulty = min(
+            chosen_difficulty + 1,
+            3
+        )
+
+    difficulty_adjustment = (
+        chosen_difficulty - base_difficulty
+    )
 
     # =========================
     # 🧠 SESSION TASK POOL
@@ -717,6 +798,11 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
             "likely_style": likely_style,
             "risk": risk,
             "trend": trend
+        },
+
+        "orchestration": {
+            "resolved_routing": resolved_routing,
+            "routing_trace": routing_trace
         }
     }
     return task_payload
