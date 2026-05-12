@@ -190,6 +190,10 @@ from project.app.services.routing.routing_trace_store import (
     persist_routing_trace
 )
 
+from project.app.services.routing.orchestration_health import (
+    evaluate_orchestration_health
+)
+
 
 
 def _project_root() -> Path:
@@ -524,6 +528,13 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         resolved_routing
     )
 
+    orchestration_health = (
+        evaluate_orchestration_health(
+            normalized_signals,
+            resolved_routing
+        )
+    )
+
     persist_routing_trace(
         participant_id,
         routing_trace
@@ -802,7 +813,8 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
 
         "orchestration": {
             "resolved_routing": resolved_routing,
-            "routing_trace": routing_trace
+            "routing_trace": routing_trace,
+            "health": orchestration_health
         }
     }
     return task_payload
