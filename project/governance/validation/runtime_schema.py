@@ -43,6 +43,23 @@ class LegitimacyState:
 
 
 @dataclass
+@dataclass
+class TemporalGovernanceState:
+    """
+    Temporal governance reevaluation state.
+
+    Tracks governance persistence timing and
+    reevaluation sensitivity semantics.
+    """
+
+    governance_state_entered_at: str = ""
+
+    last_evaluation_at: str = ""
+
+    reevaluation_required: bool = False
+
+
+@dataclass
 class GovernanceTrace:
     """
     Governance observability surface.
@@ -85,6 +102,10 @@ class RuntimeGovernanceContext:
 
     governance_trace: GovernanceTrace = field(
         default_factory=GovernanceTrace
+    )
+
+    temporal_state: TemporalGovernanceState = field(
+        default_factory=TemporalGovernanceState
     )
 
     metadata: Dict[str, Any] = field(

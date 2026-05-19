@@ -30,3 +30,13 @@ HIGH_CONFIDENCE_THRESHOLD = 0.8
 MODERATE_CONFIDENCE_THRESHOLD = 0.5
 
 LOW_CONFIDENCE_THRESHOLD = 0.2
+
+
+
+# =====================================
+# Temporal governance thresholds
+# =====================================
+
+MAX_REEVALUATION_INTERVAL_SECONDS = 3600
+
+MAX_GOVERNANCE_STATE_DURATION_SECONDS = 7200
