@@ -30,6 +30,23 @@ class GovernanceValidationReport:
 
     governance_status: str = "unknown"
 
+    def to_dict(self) -> Dict[str, object]:
+        """
+        Serialize governance validation report.
+        """
+
+        return {
+            "total_assertions": self.total_assertions,
+            "passed_assertions": self.passed_assertions,
+            "failed_assertions": self.failed_assertions,
+            "governance_status": self.governance_status,
+            "severity_counts": self.severity_counts,
+            "violations": [
+                violation.to_dict()
+                for violation in self.violations
+            ],
+        }
+
 
 def generate_validation_report(
     results: List[AssertionResult],

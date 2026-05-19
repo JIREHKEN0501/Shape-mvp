@@ -196,13 +196,7 @@ for scenario in test_scenarios:
 
     print("\n--- GOVERNANCE REPORT ---\n")
 
-    pprint({
-        "governance_status": report.governance_status,
-        "total_assertions": report.total_assertions,
-        "passed_assertions": report.passed_assertions,
-        "failed_assertions": report.failed_assertions,
-        "severity_counts": report.severity_counts,
-    })
+    pprint(report.to_dict())
 
     print("\n--- TELEMETRY EVENTS ---\n")
 

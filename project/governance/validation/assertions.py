@@ -13,6 +13,7 @@ from .constants import (
     SUFFICIENT_EVIDENCE_SCORE,
     HIGH_AUTHORITY_THRESHOLD,
 )
+from .runtime_schema import RuntimeGovernanceContext
 
 @dataclass
 class AssertionResult:
@@ -122,15 +123,49 @@ def evaluate_governance_visibility(
     if invariant is None:
         raise ValueError("INV-004 invariant not registered.")
 
-    governance_trace = runtime_context.get("governance_trace")
+    if isinstance(
+        runtime_context,
+        RuntimeGovernanceContext,
+    ):
 
-    active_modes = runtime_context.get(
-        "governance_state",
-        {}
-    ).get(
-        "active_modes",
-        []
-    )
+        governance_trace = (
+            runtime_context.governance_trace
+        )
+
+        active_modes = (
+            runtime_context
+            .governance_state
+            .active_modes
+        )
+
+        governance_trace = {
+            "routing_status": (
+                governance_trace.routing_status
+            ),
+            "reasoning": (
+                governance_trace.reasoning
+            ),
+            "routing_directives": (
+                governance_trace.routing_directives
+            ),
+            "transparency_note": (
+                governance_trace.transparency_note
+            ),
+        }
+
+    else:
+
+        governance_trace = runtime_context.get(
+            "governance_trace"
+        )
+
+        active_modes = runtime_context.get(
+            "governance_state",
+            {}
+        ).get(
+            "active_modes",
+            []
+        )
 
     trace_has_visibility = bool(
         governance_trace
@@ -207,20 +242,39 @@ def evaluate_restriction_precedence(
     if invariant is None:
         raise ValueError("INV-001 invariant not registered.")
 
-    governance_state = runtime_context.get(
-        "governance_state",
-        {}
-    )
+    if isinstance(
+        runtime_context,
+        RuntimeGovernanceContext,
+    ):
 
-    active_modes = governance_state.get(
-        "active_modes",
-        []
-    )
+        governance_state = (
+            runtime_context.governance_state
+        )
 
-    authority_level = governance_state.get(
-        "authority_level",
-        1.0,
-    )
+        active_modes = (
+            governance_state.active_modes
+        )
+
+        authority_level = (
+            governance_state.authority_level
+        )
+
+    else:
+
+        governance_state = runtime_context.get(
+            "governance_state",
+            {}
+        )
+
+        active_modes = governance_state.get(
+            "active_modes",
+            []
+        )
+
+        authority_level = governance_state.get(
+            "authority_level",
+            1.0,
+        )
 
     restrictive_modes = {
         "suppression",
@@ -301,25 +355,48 @@ def evaluate_persistence_legitimacy(
     if invariant is None:
         raise ValueError("INV-002 invariant not registered.")
 
-    legitimacy_state = runtime_context.get(
-        "legitimacy_state",
-        {}
-    )
+    if isinstance(
+        runtime_context,
+        RuntimeGovernanceContext,
+    ):
 
-    evidence_state = runtime_context.get(
-        "evidence_state",
-        {}
-    )
+        legitimacy_state = (
+            runtime_context.legitimacy_state
+        )
 
-    confidence = legitimacy_state.get(
-        "confidence",
-        0.0,
-    )
+        evidence_state = (
+            runtime_context.evidence_state
+        )
 
-    evidence_score = evidence_state.get(
-        "evidence_score",
-        0.0,
-    )
+        confidence = (
+            legitimacy_state.confidence
+        )
+
+        evidence_score = (
+            evidence_state.evidence_score
+        )
+
+    else:
+
+        legitimacy_state = runtime_context.get(
+            "legitimacy_state",
+            {}
+        )
+
+        evidence_state = runtime_context.get(
+            "evidence_state",
+            {}
+        )
+
+        confidence = legitimacy_state.get(
+            "confidence",
+            0.0,
+        )
+
+        evidence_score = evidence_state.get(
+            "evidence_score",
+            0.0,
+        )
 
     evidence_sufficient = (
         evidence_score >= SUFFICIENT_EVIDENCE_SCORE
@@ -396,25 +473,48 @@ def evaluate_constrained_rehabilitation(
     if invariant is None:
         raise ValueError("INV-008 invariant not registered.")
 
-    legitimacy_state = runtime_context.get(
-        "legitimacy_state",
-        {}
-    )
+    if isinstance(
+        runtime_context,
+        RuntimeGovernanceContext,
+    ):
 
-    governance_state = runtime_context.get(
-        "governance_state",
-        {}
-    )
+        legitimacy_state = (
+            runtime_context.legitimacy_state
+        )
 
-    rehabilitation_active = legitimacy_state.get(
-        "rehabilitation_active",
-        False,
-    )
+        governance_state = (
+            runtime_context.governance_state
+        )
 
-    authority_level = governance_state.get(
-        "authority_level",
-        0.0,
-    )
+        rehabilitation_active = (
+            legitimacy_state.rehabilitation_active
+        )
+
+        authority_level = (
+            governance_state.authority_level
+        )
+
+    else:
+
+        legitimacy_state = runtime_context.get(
+            "legitimacy_state",
+            {}
+        )
+
+        governance_state = runtime_context.get(
+            "governance_state",
+            {}
+        )
+
+        rehabilitation_active = legitimacy_state.get(
+            "rehabilitation_active",
+            False,
+        )
+
+        authority_level = governance_state.get(
+            "authority_level",
+            0.0,
+        )
 
     aggressive_rehabilitation = (
         rehabilitation_active
