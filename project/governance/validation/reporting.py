@@ -29,6 +29,7 @@ class GovernanceValidationReport:
     )
 
     governance_status: str = "unknown"
+    topology_integrity: str = "unknown"
 
     def to_dict(self) -> Dict[str, object]:
         """
@@ -40,6 +41,9 @@ class GovernanceValidationReport:
             "passed_assertions": self.passed_assertions,
             "failed_assertions": self.failed_assertions,
             "governance_status": self.governance_status,
+            "topology_integrity": (
+                self.topology_integrity
+            ),
             "severity_counts": self.severity_counts,
             "violations": [
                 violation.to_dict()
@@ -82,12 +86,21 @@ def generate_validation_report(
             )
 
     governance_status = "stable"
+    topology_integrity = "stable"
 
     if failed_assertions > 0:
         governance_status = "degraded"
 
     if severity_counts.get("critical", 0) > 0:
         governance_status = "critical"
+    topology_violations_present = any(
+        violation.invariant.invariant_id
+        == "INV-009"
+        for violation in violations
+    )
+
+    if topology_violations_present:
+        topology_integrity = "violated"
 
     return GovernanceValidationReport(
         total_assertions=total_assertions,
@@ -96,4 +109,7 @@ def generate_validation_report(
         violations=violations,
         severity_counts=severity_counts,
         governance_status=governance_status,
+        topology_integrity=(
+            topology_integrity
+        ),
     )

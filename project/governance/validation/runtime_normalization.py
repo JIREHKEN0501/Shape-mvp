@@ -58,6 +58,21 @@ def normalize_runtime_context(
     return RuntimeGovernanceContext(
 
         governance_state=GovernanceState(
+
+            previous_state=(
+                governance_state_data.get(
+                    "previous_state",
+                    "",
+                )
+            ),
+
+            current_state=(
+                governance_state_data.get(
+                    "current_state",
+                    "unrestricted",
+                )
+            ),
+
             active_modes=governance_state_data.get(
                 "active_modes",
                 [],

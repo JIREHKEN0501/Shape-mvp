@@ -7,6 +7,10 @@ from .telemetry import telemetry_buffer
 from .runtime_normalization import (
     normalize_runtime_context,
 )
+
+from .topology_validation import (
+    is_transition_allowed,
+)
 from .violations import (
      GovernanceViolation,
      ViolationStatus,
@@ -90,7 +94,13 @@ def evaluate_assertion(
             },
         )
 
-    return evaluator(runtime_context)
+    normalized_context = (
+        normalize_runtime_context(
+            runtime_context
+        )
+    )
+
+    return evaluator(normalized_context)
 
 
 def evaluate_all_assertions(
@@ -460,6 +470,104 @@ def evaluate_persistence_legitimacy(
 register_assertion(
     invariant_id="INV-002",
     evaluator=evaluate_persistence_legitimacy,
+)
+
+
+def evaluate_transition_legality(
+    runtime_context: Dict[str, Any],
+) -> AssertionResult:
+    """
+    Validate governance transition legality.
+    """
+
+    invariant = get_invariant("INV-009")
+
+    if invariant is None:
+        raise ValueError(
+            "INV-009 invariant not registered."
+        )
+
+    governance_state = (
+        runtime_context.governance_state
+    )
+
+    previous_state = (
+        governance_state.previous_state
+    )
+
+    current_state = (
+        governance_state.current_state
+    )
+
+    if previous_state:
+
+        allowed = is_transition_allowed(
+            previous_state,
+            current_state,
+        )
+
+        if not allowed:
+
+            violation = GovernanceViolation(
+                invariant=invariant,
+                message=(
+                    "Illegal governance transition "
+                    "detected."
+                ),
+                status=ViolationStatus.DETECTED,
+                recommendation=(
+                    "Ensure governance transitions "
+                    "follow canonical topology."
+                ),
+                metadata={
+                    "previous_state": (
+                        previous_state
+                    ),
+                    "current_state": (
+                        current_state
+                    ),
+                },
+            )
+
+            telemetry_buffer.emit(
+                event_type=(
+                    "transition_legality_violation"
+                ),
+                payload=violation.to_dict(),
+            )
+
+            return AssertionResult(
+                invariant=invariant,
+                passed=False,
+                violations=[violation],
+            )
+
+    telemetry_buffer.emit(
+        event_type=(
+            "transition_legality_verified"
+        ),
+        payload={
+            "invariant_id": (
+                invariant.invariant_id
+            ),
+            "previous_state": (
+                previous_state
+            ),
+            "current_state": (
+                current_state
+            ),
+        },
+    )
+
+    return AssertionResult(
+        invariant=invariant,
+        passed=True,
+    )
+
+
+register_assertion(
+    invariant_id="INV-009",
+    evaluator=evaluate_transition_legality,
 )
 
 

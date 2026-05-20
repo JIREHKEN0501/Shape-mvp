@@ -116,6 +116,75 @@ test_scenarios = [
 
     {
         "name": (
+            "legal_transition_progression"
+        ),
+
+        "runtime_context": {
+            "governance_state": {
+                "previous_state": (
+                    "suppression"
+                ),
+                "current_state": (
+                    "stabilization"
+                ),
+                "active_modes": [
+                    "stabilization"
+                ],
+                "authority_level": 0.4,
+            },
+
+            "governance_trace": {
+                "routing_status": (
+                    "restricted"
+                ),
+                "reasoning": [
+                    "Progressive recovery active."
+                ],
+                "routing_directives": {
+                    "stabilize": True
+                },
+                "transparency_note": (
+                    "Transition legality valid."
+                ),
+            },
+        },
+    },
+
+    {
+        "name": (
+            "illegal_transition_bypass"
+        ),
+
+        "runtime_context": {
+            "governance_state": {
+                "previous_state": (
+                    "suppression"
+                ),
+                "current_state": (
+                    "unrestricted"
+                ),
+                "active_modes": [],
+                "authority_level": 1.0,
+            },
+
+            "governance_trace": {
+                "routing_status": (
+                    "unrestricted"
+                ),
+                "reasoning": [
+                    "Authority restored abruptly."
+                ],
+                "routing_directives": {},
+                "transparency_note": (
+                    "Illegal restoration bypass."
+                ),
+            },
+        },
+    },
+
+
+    {
+        "name": (
             "temporal_reevaluation_compliant_state"
         ),
 

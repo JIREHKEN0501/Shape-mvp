@@ -129,6 +129,20 @@ INVARIANTS: Dict[str, GovernanceInvariant] = {
             "Prevents legitimacy inflation and unstable authority rebounds."
         ),
     ),
+
+    "INV-009": GovernanceInvariant(
+        invariant_id="INV-009",
+        name="Governance Transition Legality",
+        severity=InvariantSeverity.CRITICAL,
+        description=(
+            "Governance transitions must follow "
+            "canonical topology legality."
+        ),
+        rationale=(
+            "Prevents illegal authority restoration "
+            "and invalid governance progression."
+        ),
+    ),
 }
 
 

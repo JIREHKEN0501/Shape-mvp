@@ -8,6 +8,10 @@ class GovernanceState:
     Active governance runtime state.
     """
 
+    previous_state: str = ""
+
+    current_state: str = "unrestricted"
+
     active_modes: List[str] = field(default_factory=list)
 
     authority_level: float = 1.0
