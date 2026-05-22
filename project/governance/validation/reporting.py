@@ -1,10 +1,11 @@
-
 from dataclasses import dataclass, field
 from typing import Dict, List
 
 from .assertions import AssertionResult
 from .violations import GovernanceViolation
-
+from .arbitration import (
+    ArbitrationResult,
+)
 
 @dataclass
 class GovernanceValidationReport:
@@ -29,6 +30,21 @@ class GovernanceValidationReport:
     )
 
     governance_status: str = "unknown"
+
+    arbitration_active: bool = False
+
+    arbitration_summaries: List[str] = field(
+        default_factory=list
+    )
+
+    arbitration_authority_ceiling: float = 0.5
+
+    arbitration_unresolved_ambiguities: List[
+        str
+    ] = field(
+        default_factory=list
+    )
+
     topology_integrity: str = "unknown"
 
     def to_dict(self) -> Dict[str, object]:
@@ -41,6 +57,17 @@ class GovernanceValidationReport:
             "passed_assertions": self.passed_assertions,
             "failed_assertions": self.failed_assertions,
             "governance_status": self.governance_status,
+            "arbitration_active":
+                self.arbitration_active,
+
+            "arbitration_summaries":
+                self.arbitration_summaries,
+
+            "arbitration_authority_ceiling":
+                self.arbitration_authority_ceiling,
+
+            "arbitration_unresolved_ambiguities":
+                self.arbitration_unresolved_ambiguities,
             "topology_integrity": (
                 self.topology_integrity
             ),
@@ -54,6 +81,11 @@ class GovernanceValidationReport:
 
 def generate_validation_report(
     results: List[AssertionResult],
+
+    arbitration_results: List[
+        ArbitrationResult
+    ] | None = None,
+
 ) -> GovernanceValidationReport:
     """
     Aggregate assertion evaluation results into a
@@ -73,6 +105,16 @@ def generate_validation_report(
     violations: List[GovernanceViolation] = []
 
     severity_counts: Dict[str, int] = {}
+
+    arbitration_active = False
+
+    arbitration_summaries: List[str] = []
+
+    arbitration_authority_ceiling = 1.0
+
+    arbitration_unresolved_ambiguities: List[
+        str
+    ] = []
 
     for result in results:
         for violation in result.violations:
@@ -102,6 +144,28 @@ def generate_validation_report(
     if topology_violations_present:
         topology_integrity = "violated"
 
+    if arbitration_results:
+
+        arbitration_active = True
+
+        arbitration_authority_ceiling = min(
+            result.authority_ceiling
+            for result in arbitration_results
+        )
+
+        for result in arbitration_results:
+
+            arbitration_summaries.append(
+                (
+                    "dominant="
+                    f"{result.dominant_principle.value}"
+                )
+            )
+
+            arbitration_unresolved_ambiguities.extend(
+                result.unresolved_ambiguities
+            )
+
     return GovernanceValidationReport(
         total_assertions=total_assertions,
         passed_assertions=passed_assertions,
@@ -109,6 +173,22 @@ def generate_validation_report(
         violations=violations,
         severity_counts=severity_counts,
         governance_status=governance_status,
+
+        arbitration_active=(
+            arbitration_active
+        ),
+
+        arbitration_summaries=(
+            arbitration_summaries
+        ),
+
+        arbitration_authority_ceiling=(
+            arbitration_authority_ceiling
+        ),
+
+        arbitration_unresolved_ambiguities=(
+            arbitration_unresolved_ambiguities
+        ),
         topology_integrity=(
             topology_integrity
         ),
