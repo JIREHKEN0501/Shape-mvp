@@ -26,7 +26,8 @@ def _trace_log_path() -> Path:
 
 def persist_routing_trace(
     participant_id: str,
-    trace: Dict[str, Any]
+    trace: Dict[str, Any],
+    health: Dict[str, Any] | None = None
 ) -> None:
     """
     Persist routing transparency trace.
@@ -44,6 +45,14 @@ def persist_routing_trace(
 
         "trace": trace
     }
+
+    # =====================================
+    # Optional orchestration health telemetry
+    # =====================================
+
+    if health is not None:
+
+        payload["health"] = health
 
     log_path = _trace_log_path()
 

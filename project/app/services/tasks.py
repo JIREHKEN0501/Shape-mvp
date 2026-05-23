@@ -194,6 +194,38 @@ from project.app.services.routing.orchestration_health import (
     evaluate_orchestration_health
 )
 
+from project.app.services.routing.routing_history_loader import (
+    load_recent_orchestration_history
+)
+
+from project.app.services.routing.oscillation_detector import (
+    detect_orchestration_oscillation
+)
+
+from project.app.services.routing.governance_state import (
+    build_governance_state
+)
+
+from project.app.services.routing.constraint_resolver import (
+    resolve_governance_constraints
+)
+
+from project.app.services.routing.selection_trace import (
+    build_selection_trace
+)
+
+from project.app.services.routing.confidence_engine import (
+    build_orchestration_confidence
+)
+
+from project.app.services.routing.governed_adaptation import (
+    mediate_difficulty_adjustment
+)
+
+from project.governance.validation.governance_envelope import (
+    GovernanceEnvelope
+)
+
 
 
 def _project_root() -> Path:
@@ -535,9 +567,53 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         )
     )
 
+    # =====================================
+    # Longitudinal orchestration instability
+    # =====================================
+
+    orchestration_history = (
+        load_recent_orchestration_history(
+            participant_id
+        )
+    )
+
+    orchestration_history.append({
+
+        "trace": routing_trace,
+
+        "health": orchestration_health
+    })
+
+    oscillation_state = (
+        detect_orchestration_oscillation(
+            orchestration_history
+        )
+    )
+
+    # =====================================
+    # Governance-state representation
+    # =====================================
+
+    governance_state = (
+        build_governance_state(
+            oscillation_state
+        )
+    )
+
+    # =====================================
+    # Resolve governance constraints
+    # =====================================
+
+    resolved_constraints = (
+        resolve_governance_constraints(
+            governance_state
+        )
+    )
+
     persist_routing_trace(
         participant_id,
-        routing_trace
+        routing_trace,
+        orchestration_health
     )
 
     strategy_name = behavior_strategy["name"]
@@ -653,6 +729,118 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         chosen_difficulty - base_difficulty
     )
 
+    # =====================================
+    # Governance envelope synthesis
+    # =====================================
+
+    governance_envelope = GovernanceEnvelope(
+
+        governance_status=(
+            governance_state.get(
+                "governance_status",
+                "stable"
+            )
+        ),
+
+        topology_integrity=(
+            governance_state.get(
+                "topology_integrity",
+                "stable"
+            )
+        ),
+
+        authority_ceiling=(
+            resolved_constraints.get(
+                "authority_ceiling",
+                1.0
+            )
+        ),
+
+        reevaluation_required=(
+            governance_state.get(
+                "reevaluation_required",
+                False
+            )
+        ),
+
+        arbitration_active=(
+            governance_state.get(
+                "arbitration_active",
+                False
+            )
+        ),
+
+        active_constraints=(
+            resolved_constraints.get(
+                "active_constraints",
+                []
+            )
+        ),
+    )
+
+    governed_adaptation = (
+        mediate_difficulty_adjustment(
+
+            base_difficulty=(
+                base_difficulty
+            ),
+
+            proposed_difficulty=(
+                chosen_difficulty
+            ),
+
+            governance_envelope=(
+                governance_envelope
+            ),
+        )
+    )
+
+    chosen_difficulty = (
+        governed_adaptation
+        .permitted_difficulty
+    )
+
+    difficulty_adjustment = (
+        chosen_difficulty
+        - base_difficulty
+    )
+
+
+    # =====================================
+    # Governance-aware difficulty enforcement
+    # =====================================
+
+    max_shift = resolved_constraints.get(
+        "max_difficulty_shift"
+    )
+
+    if max_shift == 0:
+
+        chosen_difficulty = base_difficulty
+
+    elif (
+        max_shift == 1
+        and abs(
+            chosen_difficulty - base_difficulty
+        ) > 1
+    ):
+
+        if chosen_difficulty > base_difficulty:
+
+            chosen_difficulty = (
+                base_difficulty + 1
+            )
+
+        else:
+
+            chosen_difficulty = (
+                base_difficulty - 1
+            )
+
+    difficulty_adjustment = (
+        chosen_difficulty - base_difficulty
+    )
+
     # =========================
     # 🧠 SESSION TASK POOL
     # =========================
@@ -680,9 +868,13 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     # =====================================
     # 🧠 Adaptive scoring layer
     # =====================================
-    def task_score(task):
-        score = 0
-        reasons = []
+    def score_task(task):
+
+        score = 1
+
+        reasons = [
+            "Baseline orchestration eligibility (+1)"
+        ]
 
         cat = task["category"]
         diff = int(task.get("difficulty", 1))
@@ -752,18 +944,95 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
                     "Confidence stabilization bonus (+1)"
                 )
               
-        task["_selection_score"] =round(score, 2)
-        task["_selection_reasons"] = reasons
-        return score
+        return {
+
+            "task": task,
+
+            "score": round(score, 2),
+
+            "reasons": reasons
+        }
 
 
-    # Rank tasks by adaptive score
-    remaining_tasks.sort(key=task_score, reverse=True)
+    # =====================================
+    # Explicit orchestration scoring
+    # =====================================
+
+    scored_tasks = []
+
+    for task in remaining_tasks:
+
+        result = score_task(task)
+
+        scored_tasks.append({
+
+            "task": task,
+
+            "score": result["score"],
+
+            "reasons": result["reasons"]
+        })
+
+    scored_tasks.sort(
+        key=lambda x: x["score"],
+        reverse=True
+    )
 
     # Add light randomness to avoid predictability
-    top_slice = remaining_tasks[:5] if len(remaining_tasks) >= 5 else remaining_tasks
+    top_slice = (
+        scored_tasks[:5]
+        if len(scored_tasks) >= 5
+        else scored_tasks
+    )
 
-    raw_task = random.choice(top_slice)
+    selected = random.choice(top_slice)
+
+    raw_task = selected["task"]
+
+    selection_score = selected["score"]
+
+    selection_reasons = selected["reasons"]
+
+    # =====================================
+    # Build orchestration explainability
+    # =====================================
+
+    selection_trace = (
+        build_selection_trace(
+
+            target_category=chosen_category,
+
+            selected_category=raw_task.get(
+                "category",
+                "unknown"
+            ),
+
+            selection_reasons=selection_reasons,
+
+            difficulty_adjustment=difficulty_adjustment,
+
+            governance_state=governance_state,
+
+            resolved_constraints=resolved_constraints
+        )
+    )
+
+    # =====================================
+    # Build orchestration confidence
+    # =====================================
+
+    orchestration_confidence = (
+        build_orchestration_confidence(
+
+            orchestration_health=orchestration_health,
+
+            governance_state=governance_state,
+
+            oscillation_state=oscillation_state,
+
+            history_depth=len(orchestration_history)
+        )
+    )
 
     # 🚨 HARD GUARD — never send broken task to frontend
     if not raw_task.get("instruction") or not raw_task.get("options"):
@@ -791,9 +1060,9 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
             "target_category": chosen_category,
             "selected_category": raw_task.get("category"),
 
-            "selection_score": raw_task.get("_selection_score"),
+            "selection_score": selection_score,
 
-            "selection_reasons": raw_task.get("_selection_reasons", [])
+            "selection_reasons": selection_reasons
         },
 
         "difficulty": {
@@ -814,7 +1083,34 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         "orchestration": {
             "resolved_routing": resolved_routing,
             "routing_trace": routing_trace,
-            "health": orchestration_health
+            "health": orchestration_health,
+            "oscillation": oscillation_state,
+            "governance_state": governance_state,
+            "resolved_constraints": resolved_constraints,
+            "selection_trace": selection_trace,
+            "confidence": orchestration_confidence,
+
+            "governed_adaptation": {
+                "permitted_difficulty": (
+                    governed_adaptation
+                    .permitted_difficulty
+                ),
+
+                "escalation_constrained": (
+                    governed_adaptation
+                    .escalation_constrained
+                ),
+
+                "recovery_constrained": (
+                    governed_adaptation
+                    .recovery_constrained
+                ),
+
+                "governance_reason": (
+                    governed_adaptation
+                    .governance_reason
+                ),
+            }
         }
     }
     return task_payload
