@@ -1,4 +1,8 @@
 from dataclasses import dataclass
+from project.governance.validation.scenario_profiles import (
+    ScenarioPressureProfile,
+    STABILIZATION_PROFILE,
+)
 
 @dataclass
 class LongitudinalSessionState:
@@ -30,6 +34,10 @@ class LongitudinalSessionState:
     reevaluation_required: bool
 
     stabilization_trend: str
+
+    stabilization_confidence: float
+
+    stabilization_streak: int
 
     difficulty_shift: int
 
@@ -80,6 +88,10 @@ def initialize_longitudinal_state(
         reevaluation_required=False,
 
         stabilization_trend="stable",
+ 
+        stabilization_confidence=0.5,
+
+        stabilization_streak=0,
 
         difficulty_shift=0,
     )
@@ -87,6 +99,7 @@ def initialize_longitudinal_state(
 
 def evolve_longitudinal_state(
     previous_state: LongitudinalSessionState,
+    profile: ScenarioPressureProfile,
 ) -> LongitudinalSessionState:
     """
     Evolve orchestration-governance state
@@ -115,7 +128,9 @@ def evolve_longitudinal_state(
     # Escalation pressure evolution
     # =====================================
 
-    pressure_growth = 0.15
+    pressure_growth = (
+        profile.escalation_growth_rate
+    )
 
     # Governance stabilization damping
     if previous_state.arbitration_active:
@@ -124,7 +139,9 @@ def evolve_longitudinal_state(
 
     if previous_state.authority_ceiling < 0.7:
 
-        pressure_growth -= 0.03
+        pressure_growth -= (
+            profile.anticipatory_damping_strength
+        )
 
     if previous_state.reevaluation_required:
 
@@ -136,7 +153,9 @@ def evolve_longitudinal_state(
 
     if previous_state.instability_velocity > 0.08:
 
-        pressure_growth -= 0.03
+        pressure_growth -= (
+            profile.anticipatory_damping_strength
+        )
 
     if previous_state.instability_velocity > 0.12:
 
@@ -157,14 +176,22 @@ def evolve_longitudinal_state(
         escalation_pressure * 0.2
     )
 
+    instability_delta += (
+        profile.instability_resistance
+    )
+
     # Stabilization recovery pressure
     if previous_state.arbitration_active:
 
-        instability_delta -= 0.05
+        instability_delta -= (
+            profile.governance_responsiveness
+        )
 
     if previous_state.topology_integrity == "violated":
 
-        instability_delta -= 0.08
+        instability_delta -= (
+            profile.recovery_persistence
+        )
 
     instability_level += instability_delta
 
@@ -218,7 +245,9 @@ def evolve_longitudinal_state(
         difficulty_shift = -1
 
         # Governance stabilization pressure
-        instability_level -= 0.2
+        instability_level -= (
+            profile.critical_recovery_strength
+        )
 
     instability_velocity = round(
         instability_level
@@ -230,6 +259,70 @@ def evolve_longitudinal_state(
         evaluate_stabilization_trend(
             instability_level,
             previous_state.instability_level,
+        )
+    )
+
+    # =====================================
+    # Stabilization confidence evolution
+    # =====================================
+
+    stabilization_confidence = (
+        previous_state
+        .stabilization_confidence
+    )
+
+    # =====================================
+    # Stabilization persistence tracking
+    # =====================================
+
+    stabilization_streak = (
+        previous_state
+        .stabilization_streak
+    )
+
+    if stabilization_trend == "stabilizing":
+
+        stabilization_streak += 1
+
+    elif stabilization_trend == "escalating":
+
+        stabilization_streak = 0
+
+    # Recovery increases confidence
+    if stabilization_trend == "stabilizing":
+
+        stabilization_confidence += (
+            0.05
+            + (
+                stabilization_streak
+                * 0.02
+            )
+        )
+
+    # Persistent escalation erodes confidence
+    elif stabilization_trend == "escalating":
+
+        stabilization_confidence -= 0.05
+
+    # Critical instability reduces trust
+    if governance_status == "critical":
+
+        stabilization_confidence -= 0.10
+
+    # Bounded governance recovery
+    if (
+        governance_status == "degraded"
+        and instability_level < 0.60
+    ):
+
+        stabilization_confidence += 0.04
+
+    # Clamp confidence safely
+    stabilization_confidence = max(
+        0.0,
+        min(
+            1.0,
+            stabilization_confidence
         )
     )
 
@@ -274,7 +367,15 @@ def evolve_longitudinal_state(
         stabilization_trend=(
             stabilization_trend
         ),
-
+  
+        stabilization_confidence=(
+            stabilization_confidence
+        ),
+    
+        stabilization_streak=(
+            stabilization_streak
+        ),
+    
         difficulty_shift=(
             difficulty_shift
         ),
@@ -282,6 +383,7 @@ def evolve_longitudinal_state(
 
 def run_longitudinal_simulation(
     total_cycles: int = 10,
+    profile=STABILIZATION_PROFILE,
 ) -> list[LongitudinalSessionState]:
     """
     Run longitudinal orchestration-governance
@@ -303,11 +405,16 @@ def run_longitudinal_simulation(
 
         current_state = (
             evolve_longitudinal_state(
-                current_state
+                current_state,
+                profile,
             )
         )
 
         states.append(current_state)
+
+    stabilization_streak=0,
+
+    stabilization_confidence=0.5,
 
     return states
 
@@ -368,6 +475,16 @@ def print_simulation_summary(
         print(
             f"stabilization_trend: "
             f"{state.stabilization_trend}"
+        )
+
+        print(
+            f"stabilization_confidence: "
+            f"{round(state.stabilization_confidence, 2)}"
+        )
+
+        print(
+            f"stabilization_streak: "
+            f"{state.stabilization_streak}"
         )
 
         print(
