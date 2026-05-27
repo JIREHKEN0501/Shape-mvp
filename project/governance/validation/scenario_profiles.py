@@ -123,3 +123,28 @@ SUSTAINED_RECOVERY_PROFILE = (
         critical_recovery_strength=0.48,
     )
 )
+
+# =====================================
+# Ambiguous Recovery Arc
+# =====================================
+
+AMBIGUOUS_RECOVERY_PROFILE = (
+    ScenarioPressureProfile(
+
+        scenario_name=(
+            "ambiguous_recovery_arc"
+        ),
+
+        escalation_growth_rate=0.12,
+
+        instability_resistance=0.09,
+
+        anticipatory_damping_strength=0.14,
+
+        governance_responsiveness=0.15,
+
+        recovery_persistence=0.18,
+
+        critical_recovery_strength=0.26,
+    )
+)

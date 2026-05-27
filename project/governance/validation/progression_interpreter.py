@@ -356,7 +356,8 @@ def interpret_progression_behavior(
     if (
         oscillation_analysis.oscillation_pattern
         == "destabilizing_oscillation"
-        and avg_confidence < 0.30
+
+        and critical_cycles > stabilization_cycles
     ):
 
         narrative_archetype = (
@@ -371,24 +372,8 @@ def interpret_progression_behavior(
         )
 
     elif (
-        final_state.stabilization_streak >= 2
-        and avg_confidence >= 0.45
-    ):
 
-        narrative_archetype = (
-            "strengthening_recovery"
-        )
-
-        progression_summary = (
-            select_narrative_variant(
-                STRENGTHENING_RECOVERY_VARIANTS,
-                states,
-            )
-        )
-    
-    elif (
-
-        recovery_strength_score >= 0.75
+        recovery_strength_score >= 0.90
 
         and max_stabilization_streak >= 3
 
