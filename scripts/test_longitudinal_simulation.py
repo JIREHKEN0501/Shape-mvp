@@ -13,6 +13,7 @@ from project.governance.validation.scenario_profiles import (
     STABILIZATION_PROFILE,
     PERSISTENT_ESCALATION_PROFILE,
     RECOVERY_PROFILE,
+    SUSTAINED_RECOVERY_PROFILE,
 )
 
 def main():
@@ -24,6 +25,8 @@ def main():
         PERSISTENT_ESCALATION_PROFILE,
 
         RECOVERY_PROFILE,
+
+        SUSTAINED_RECOVERY_PROFILE,
     ]
 
     for profile in SCENARIOS:

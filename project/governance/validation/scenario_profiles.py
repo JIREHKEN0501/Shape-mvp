@@ -99,4 +99,27 @@ RECOVERY_PROFILE = (
     )
 )
 
+# =====================================
+# Sustained Recovery Arc
+# =====================================
 
+SUSTAINED_RECOVERY_PROFILE = (
+    ScenarioPressureProfile(
+
+        scenario_name=(
+            "sustained_recovery_arc"
+        ),
+
+        escalation_growth_rate=0.08,
+
+        instability_resistance=0.10,
+
+        anticipatory_damping_strength=0.20,
+
+        governance_responsiveness=0.20,
+
+        recovery_persistence=0.32,
+
+        critical_recovery_strength=0.48,
+    )
+)

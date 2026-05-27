@@ -170,6 +170,8 @@ def interpret_progression_behavior(
 
     stabilization_relapsed = False
 
+    relapse_events = 0
+
     for index in range(1, len(states)):
 
         previous_state = states[index - 1]
@@ -188,6 +190,73 @@ def interpret_progression_behavior(
 
             stabilization_relapsed = True
 
+            relapse_events += 1
+
+    max_stabilization_streak = max(
+
+        state.stabilization_streak
+
+        for state in states
+    )
+
+    stabilization_cycles = sum(
+
+        1
+
+        for state in states
+
+        if state.stabilization_trend
+        == "stabilizing"
+    )
+
+    critical_cycles = sum(
+
+        1
+
+        for state in states
+
+        if state.governance_status
+        == "critical"
+    )
+
+    recovery_strength_score = round(
+
+        (
+            max_stabilization_streak
+            * 0.30
+        )
+
+        +
+
+        (
+            avg_confidence
+            * 0.40
+        )
+
+        +
+
+        (
+            stabilization_cycles
+            * 0.10
+        )
+
+        -
+
+        (
+            relapse_events
+            * 0.15
+        )
+
+        -
+
+        (
+            critical_cycles
+            * 0.20
+        ),
+
+        2
+    )
+        
     # =====================================
     # Pacing condition
     # =====================================
@@ -318,8 +387,31 @@ def interpret_progression_behavior(
         )
     
     elif (
+
+        recovery_strength_score >= 0.75
+
+        and max_stabilization_streak >= 3
+
+        and critical_cycles == 0
+    ):
+
+        narrative_archetype = (
+            "strengthening_recovery"
+        )
+
+        progression_summary = (
+            select_narrative_variant(
+                STRENGTHENING_RECOVERY_VARIANTS,
+                states,
+            )
+        )
+
+    elif (
         stabilization_emerged
+
         and stabilization_relapsed
+
+        and recovery_strength_score < 0.75
     ):
 
         narrative_archetype = (
