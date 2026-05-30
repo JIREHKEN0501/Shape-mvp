@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from project.governance.validation.scenario_profiles import (
     ScenarioPressureProfile,
+    LongitudinalScenarioProfile,
     STABILIZATION_PROFILE,
 )
 
@@ -401,6 +402,143 @@ def run_longitudinal_simulation(
 
     states.append(current_state)
 
+    # =====================================
+    # Explicit trajectory replay
+    # =====================================
+
+    if isinstance(
+        profile,
+        LongitudinalScenarioProfile,
+    ):
+
+        for cycle_index in range(
+            1,
+            len(profile.instability_sequence)
+        ):
+
+            previous_state = states[-1]
+
+            instability_level = (
+                profile.instability_sequence[
+                    cycle_index
+                ]
+            )
+
+            escalation_pressure = (
+                profile.escalation_sequence[
+                    cycle_index
+                ]
+            )
+
+            stabilization_trend = (
+                evaluate_stabilization_trend(
+                    instability_level,
+                    previous_state.instability_level,
+                )
+            )
+
+            stabilization_streak = (
+                previous_state
+                .stabilization_streak
+            )
+
+            stabilization_confidence = (
+                previous_state
+                .stabilization_confidence
+            )
+
+            if stabilization_trend == "stabilizing":
+
+                stabilization_streak += 1
+
+                stabilization_confidence += (
+                    0.05
+                    + (
+                        stabilization_streak
+                        * 0.02
+                    )
+                )
+
+            elif stabilization_trend == "escalating":
+
+                stabilization_streak = 0
+
+                stabilization_confidence -= 0.05
+
+            stabilization_confidence = max(
+                0.0,
+                min(
+                    1.0,
+                    stabilization_confidence,
+                )
+            )
+
+            # =====================================
+            # Governance threshold replay
+            # =====================================
+
+            governance_status = "stable"
+
+            arbitration_active = False
+
+            authority_ceiling = 1.0
+
+            reevaluation_required = False
+
+            topology_integrity = "stable"
+
+            difficulty_shift = 1
+
+            if instability_level >= 0.5:
+
+                governance_status = "degraded"
+
+                arbitration_active = True
+
+                authority_ceiling = 0.6
+
+                reevaluation_required = True
+
+                difficulty_shift = 0
+
+            if instability_level >= 0.8:
+
+                governance_status = "critical"
+
+                arbitration_active = True
+
+                authority_ceiling = 0.3
+
+                reevaluation_required = True
+
+                topology_integrity = "violated"
+
+                difficulty_shift = -1
+
+            states.append(
+                LongitudinalSessionState(
+                    cycle_index=cycle_index,
+                    instability_level=instability_level,
+                    instability_velocity=round(
+                        instability_level
+                        - previous_state.instability_level,
+                        2
+                    ),
+                    escalation_pressure=escalation_pressure,
+                    governance_status=governance_status,
+                    arbitration_active=arbitration_active,
+                    topology_integrity=topology_integrity,
+                    authority_ceiling=authority_ceiling,
+                    reevaluation_required=reevaluation_required,
+                    stabilization_trend=stabilization_trend,
+                    stabilization_confidence=stabilization_confidence,
+                    stabilization_streak=stabilization_streak,
+                    difficulty_shift=difficulty_shift,
+                )
+            )
+
+        return states
+
     for _ in range(total_cycles - 1):
 
         current_state = (
@@ -411,11 +549,6 @@ def run_longitudinal_simulation(
         )
 
         states.append(current_state)
-
-    stabilization_streak=0,
-
-    stabilization_confidence=0.5,
-
     return states
 
 def print_simulation_summary(

@@ -101,3 +101,38 @@ Additional future work is also required around:
 - and broader longitudinal replay diversity.
 
 
+Finding:
+False recovery trajectories that exhibit
+strong intermediate stabilization followed
+by critical collapse are currently classified
+as cautious_stabilization rather than
+fragile_continuity.
+
+Implication:
+Recovery dominance weighting may still
+overvalue intermediate stabilization
+relative to terminal collapse severity.
+
+Status:
+Under investigation.
+
+Finding:
+Deterministic false recovery trajectories were initially
+misclassified as cautious_stabilization.
+
+Root Cause:
+Explicit trajectory replay omitted governance-state replay,
+preventing critical-cycle accumulation.
+
+Secondary Finding:
+Fragile continuity classification required low recovery
+strength score and failed to account for critical collapse.
+
+Resolution:
+Governance replay thresholds added.
+Fragile continuity gate expanded to consider critical
+collapse events.
+
+Outcome:
+False recovery trajectories now classify as
+fragile_continuity rather than cautious_stabilization.

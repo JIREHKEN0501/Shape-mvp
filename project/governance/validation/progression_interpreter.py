@@ -396,7 +396,10 @@ def interpret_progression_behavior(
 
         and stabilization_relapsed
 
-        and recovery_strength_score < 0.75
+        and (
+            critical_cycles > 0
+            or recovery_strength_score < 0.75
+        )
     ):
 
         narrative_archetype = (
