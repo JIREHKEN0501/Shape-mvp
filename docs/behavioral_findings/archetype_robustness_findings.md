@@ -136,3 +136,6 @@ collapse events.
 Outcome:
 False recovery trajectories now classify as
 fragile_continuity rather than cautious_stabilization.
+
+
+Robustness testing identified an over-restrictive strengthening recovery gate that excluded delayed recovery trajectories solely due to prior critical-state exposure. The gate was revised to differentiate criticality from relapse behavior. Following correction, delayed recovery trajectories correctly resolved to strengthening_recovery while false recovery trajectories continued resolving to fragile_continuity. This suggests the interpreter is becoming increasingly sensitive to trajectory shape rather than isolated state exposure.

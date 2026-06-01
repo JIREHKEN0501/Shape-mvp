@@ -271,3 +271,44 @@ OSCILLATORY_RECOVERY_TRAJECTORY = (
     )
 )
 
+
+# =====================================
+# Delayed Recovery Arc
+# =====================================
+
+DELAYED_RECOVERY_TRAJECTORY = (
+    LongitudinalScenarioProfile(
+
+        scenario_name=(
+            "delayed_recovery_trajectory"
+        ),
+
+        instability_sequence=[
+
+            0.90,
+            0.88,
+            0.86,
+            0.82,
+            0.78,
+            0.70,
+            0.60,
+            0.45,
+            0.30,
+            0.20,
+        ],
+
+        escalation_sequence=[
+
+            0.80,
+            0.78,
+            0.76,
+            0.72,
+            0.66,
+            0.58,
+            0.48,
+            0.34,
+            0.20,
+            0.10,
+        ],
+    )
+)

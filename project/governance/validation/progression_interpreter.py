@@ -377,7 +377,10 @@ def interpret_progression_behavior(
 
         and max_stabilization_streak >= 3
 
-        and critical_cycles == 0
+        and not (
+            stabilization_relapsed
+            and critical_cycles > 0
+        )
     ):
 
         narrative_archetype = (

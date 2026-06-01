@@ -18,6 +18,7 @@ from project.governance.validation.scenario_profiles import (
     FALSE_RECOVERY_PROFILE,
     FALSE_RECOVERY_TRAJECTORY,
     OSCILLATORY_RECOVERY_TRAJECTORY,
+    DELAYED_RECOVERY_TRAJECTORY,
 )
 
 def main():
@@ -39,6 +40,8 @@ def main():
         FALSE_RECOVERY_TRAJECTORY,
 
         OSCILLATORY_RECOVERY_TRAJECTORY,
+
+        DELAYED_RECOVERY_TRAJECTORY,
     ]
 
     for profile in SCENARIOS:
