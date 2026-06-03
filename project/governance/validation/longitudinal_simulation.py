@@ -49,16 +49,23 @@ def evaluate_stabilization_trend(
     """
     Evaluate whether orchestration instability
     is stabilizing, escalating, or remaining
-    unstable longitudinally.
+    stable longitudinally.
     """
 
-    if instability_level < previous_instability:
+    delta = (
+        instability_level
+        - previous_instability
+    )
+
+    if abs(delta) < 0.02:
+
+        return "stable"
+
+    if delta < 0:
+
         return "stabilizing"
 
-    if instability_level > previous_instability:
-        return "escalating"
-
-    return "stable"
+    return "escalating"
 
 def initialize_longitudinal_state(
     cycle_index: int = 0,
@@ -300,8 +307,22 @@ def evolve_longitudinal_state(
             )
         )
 
+    # Stable recovery evidence
+
+    elif stabilization_trend == "stable":
+
+        if instability_level < 0.40:
+  
+            stabilization_confidence += 0.01
+
+        elif instability_level >= 0.60:
+
+            stabilization_confidence -= 0.01
+
     # Persistent escalation erodes confidence
     elif stabilization_trend == "escalating":
+
+        stabilization_streak = 0
 
         stabilization_confidence -= 0.05
 

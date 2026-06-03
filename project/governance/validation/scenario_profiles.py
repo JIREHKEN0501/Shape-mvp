@@ -312,3 +312,117 @@ DELAYED_RECOVERY_TRAJECTORY = (
         ],
     )
 )
+
+# =====================================
+# Plateaued Recovery Arc
+# =====================================
+
+PLATEAUED_RECOVERY_TRAJECTORY = (
+    LongitudinalScenarioProfile(
+
+        scenario_name=(
+            "plateaued_recovery_trajectory"
+        ),
+
+        instability_sequence=[
+
+            0.88,
+            0.82,
+            0.72,
+            0.58,
+            0.42,
+            0.32,
+            0.30,
+            0.30,
+            0.31,
+            0.30,
+        ],
+
+        escalation_sequence=[
+
+            0.78,
+            0.70,
+            0.58,
+            0.42,
+            0.28,
+            0.18,
+            0.16,
+            0.16,
+            0.17,
+            0.16,
+        ],
+    )
+)
+
+# =====================================
+# Long Horizon Stability
+# =====================================
+
+LONG_HORIZON_STABILITY_TRAJECTORY = (
+    LongitudinalScenarioProfile(
+
+        scenario_name=(
+            "long_horizon_stability_trajectory"
+        ),
+
+        instability_sequence=[
+
+            0.90,
+            0.82,
+            0.70,
+            0.55,
+            0.42,
+            0.32,
+
+            0.30,
+            0.31,
+            0.30,
+            0.29,
+            0.30,
+            0.30,
+            0.31,
+            0.30,
+            0.29,
+            0.30,
+            0.30,
+            0.31,
+            0.30,
+            0.29,
+            0.30,
+            0.30,
+            0.31,
+            0.30,
+            0.29,
+        ],
+
+        escalation_sequence=[
+
+            0.80,
+            0.72,
+            0.60,
+            0.45,
+            0.32,
+            0.20,
+
+            0.18,
+            0.18,
+            0.18,
+            0.17,
+            0.18,
+            0.18,
+            0.18,
+            0.18,
+            0.17,
+            0.18,
+            0.18,
+            0.18,
+            0.18,
+            0.17,
+            0.18,
+            0.18,
+            0.18,
+            0.18,
+            0.17,
+        ],
+    )
+)

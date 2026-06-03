@@ -184,8 +184,10 @@ def interpret_progression_behavior(
 
             and current_state.stabilization_streak == 0
 
-            and current_state.instability_level
-            > previous_state.instability_level
+            and (
+                current_state.instability_level
+                - previous_state.instability_level
+            ) >= 0.05
         ):
 
             stabilization_relapsed = True
