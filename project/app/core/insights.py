@@ -38,7 +38,20 @@ def generate_insights(summary: Dict[str, Any]) -> Dict[str, Any]:
         cat: stats.get("accuracy", 0)
         for cat, stats in categories.items()
     }
-    top_category = max(accuracies, key=accuracies.get) if accuracies else None
+
+    top_categories = []
+
+    if accuracies:
+        top_score = max(
+            accuracies.values()
+        )
+
+        top_categories = [
+            cat
+            for cat, score
+            in accuracies.items()
+            if score == top_score
+        ]
 
     for category, stats in categories.items():
         attempts = stats.get("attempts", 0)
@@ -60,8 +73,21 @@ def generate_insights(summary: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 confidence = "low"
                 reason = "Moderate accuracy suggests developing but inconsistent performance"
-            if category == top_category:
+            if (
+                len(top_categories) == 1
+                and category in top_categories
+            ):
                 reason = "Strongest performing category relative to overall session"
+
+            elif (
+                len(top_categories) > 1
+                and category in top_categories
+            ):
+                reason = (
+                    "Performance was comparable to other "
+                    "top-performing categories within "
+                    "this session"
+                )
             insights["strengths"].append({
                 "category": category,
                 "reason": reason,
@@ -102,9 +128,9 @@ def generate_insights(summary: Dict[str, Any]) -> Dict[str, Any]:
             elif high_hes and not high_acc:
                 pattern = "High uncertainty — explores multiple options but struggles to identify correct responses, suggesting this area may be challenging"
             elif not high_hes and high_acc:
-                pattern = "Confident and accurate — responds quickly and correctly, suggesting strong familiarity with this domain"
+                pattern = "Accurate with minimal observable hesitation — maintains strong performance within this domain while showing little decision friction"
             else:
-                pattern = "Fast but inaccurate responses may indicate a tendency toward guessing or incomplete understanding"
+                pattern = "Low observable hesitation with reduced accuracy — responses are committed with little decision friction but correctness remains inconsistent within this domain"
 
             insights["patterns"].append({
                 "category": category,

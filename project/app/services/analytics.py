@@ -19,7 +19,9 @@ from project.app.config import HESITATION_THRESHOLD
 from project.app.services.metrics import evaluate_task_answer
 from project.app.core.insights import generate_insights
 from project.app.services.confidence import evaluate_confidence
-
+from project.app.utils.trajectory_dynamics import (
+    build_trajectory_dynamics,
+)
 
 # =========================================================
 # 🧠 Canonical behavioral ontology
@@ -180,6 +182,9 @@ def _augment_attempts_with_metrics_and_time(
             if isinstance(ts_attempt, (int, float)) and isinstance(ts_sess, (int, float)):
                 response_time_s = max(0.0, float(ts_attempt) - float(ts_sess))
 
+        hesitation = pre.get(
+            "hesitation"
+        )
         enriched.append(
             {
                 "task_id": att.get("task_id"),
@@ -189,6 +194,7 @@ def _augment_attempts_with_metrics_and_time(
                 "category": category,
                 "difficulty": difficulty,
                 "response_time_s": response_time_s,
+                "hesitation": hesitation,
                 "raw": att,
             }
         )
@@ -385,6 +391,10 @@ def _analyze_temporal_behavior(
         key=lambda x: x.get("ts", 0)
     )
 
+    trajectory = build_trajectory_dynamics(
+        attempts
+    )
+
     midpoint = len(attempts) // 2
 
     early = attempts[:midpoint]
@@ -490,7 +500,26 @@ def _analyze_temporal_behavior(
         "latency_trend": latency_trend,
         "confidence_trend": confidence_trend,
         "fatigue_risk": fatigue_risk,
-
+        "trajectory_shape": (
+            trajectory.get(
+                "trajectory_shape"
+            )
+        ),
+        "trajectory_state": (
+            trajectory.get(
+                "trajectory_state"
+            )
+        ),
+        "hesitation_trend": (
+            trajectory.get(
+                "hesitation_trend"
+            )
+        ),
+        "accuracy_range": (
+            trajectory.get(
+                "accuracy_range"
+            )
+        ),
         "trajectory_note": (
             "Temporal observations describe session-level behavioral dynamics "
             "and should not be interpreted as fixed personal characteristics."
