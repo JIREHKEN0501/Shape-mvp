@@ -1,0 +1,346 @@
+project
+├── README_PHASE3.md
+├── __init__.py
+├── __pycache__
+│   └── __init__.cpython-314.pyc
+├── analyze_events.py
+├── app
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-314.pyc
+│   │   ├── config.cpython-314.pyc
+│   │   └── helpers.cpython-314.pyc
+│   ├── app.py
+│   ├── config.py
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   ├── insights.cpython-314.pyc
+│   │   │   └── scoring.cpython-314.pyc
+│   │   ├── insights.py
+│   │   ├── insights.py.bak
+│   │   └── scoring.py
+│   ├── extensions
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   └── limiter.cpython-314.pyc
+│   │   ├── limiter.py
+│   │   └── old_extensions.py.backup
+│   ├── helpers.py
+│   ├── ml
+│   │   ├── aggregation
+│   │   │   └── task_difficulty_aggregator.py
+│   │   ├── generators
+│   │   │   └── session_simulator.py
+│   │   ├── integration
+│   │   │   └── task_metadata_update.py
+│   │   ├── models
+│   │   │   ├── task_difficulty_model_v0.py
+│   │   │   └── versions
+│   │   │       └── v1_0_0_manifest.json
+│   │   ├── monitoring
+│   │   │   ├── drift_detector.py
+│   │   │   └── task_drift_monitor.py
+│   │   ├── quality
+│   │   │   ├── __init__.py
+│   │   │   ├── data_quality_monitor.py
+│   │   │   └── session_quality_monitor.py
+│   │   ├── stability
+│   │   │   ├── calibration_registry.py
+│   │   │   ├── cohort_shift.py
+│   │   │   ├── drift_detector.py
+│   │   │   └── temporal_drift.py
+│   │   ├── statistics
+│   │   │   ├── bayesian_calibration.py
+│   │   │   └── bootstrap.py
+│   │   └── tests
+│   │       ├── test_bayesian_calibration.py
+│   │       ├── test_calibration_registry.py
+│   │       ├── test_cohort_shift.py
+│   │       ├── test_cohort_stress.py
+│   │       ├── test_drift_detector.py
+│   │       ├── test_quality_aware_aggregation.py
+│   │       ├── test_quality_monitor.py
+│   │       ├── test_session_quality_monitor.py
+│   │       ├── test_session_simulator.py
+│   │       ├── test_task_difficulty_model_v0.py
+│   │       ├── test_task_drift_monitor.py
+│   │       └── test_temporal_drift.py
+│   ├── models
+│   │   └── __init__.py
+│   ├── routes
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   ├── admin.cpython-314.pyc
+│   │   │   ├── participant.cpython-314.pyc
+│   │   │   ├── security.cpython-314.pyc
+│   │   │   └── submit_result.cpython-314.pyc
+│   │   ├── admin.py
+│   │   ├── admin_conflict_folder_backup
+│   │   │   ├── __init__.py
+│   │   │   └── __init__.py.bak2
+│   │   ├── participant.py
+│   │   ├── security.py
+│   │   ├── submit_result.py
+│   │   └── system.py
+│   ├── security
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       └── __init__.cpython-314.pyc
+│   ├── services
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   ├── adaptive.cpython-314.pyc
+│   │   │   ├── analytics.cpython-314.pyc
+│   │   │   ├── confidence.cpython-314.pyc
+│   │   │   ├── metrics.cpython-314.pyc
+│   │   │   ├── reports.cpython-314.pyc
+│   │   │   ├── sessions.cpython-314.pyc
+│   │   │   ├── tasks.cpython-314.pyc
+│   │   │   └── validators.cpython-314.pyc
+│   │   ├── adaptive.py
+│   │   ├── analytics.py
+│   │   ├── analytics.py.bak
+│   │   ├── confidence.py
+│   │   ├── explainability.py
+│   │   ├── industry_lenses.py
+│   │   ├── insights.py
+│   │   ├── metrics.py
+│   │   ├── reports.py
+│   │   ├── routing
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-314.pyc
+│   │   │   │   ├── confidence_engine.cpython-314.pyc
+│   │   │   │   ├── constraint_resolver.cpython-314.pyc
+│   │   │   │   ├── governance_state.cpython-314.pyc
+│   │   │   │   ├── governed_adaptation.cpython-314.pyc
+│   │   │   │   ├── governed_runtime.cpython-314.pyc
+│   │   │   │   ├── orchestration_health.cpython-314.pyc
+│   │   │   │   ├── oscillation_detector.cpython-314.pyc
+│   │   │   │   ├── priority_resolver.cpython-314.pyc
+│   │   │   │   ├── routing_history_loader.cpython-314.pyc
+│   │   │   │   ├── routing_trace.cpython-314.pyc
+│   │   │   │   ├── routing_trace_store.cpython-314.pyc
+│   │   │   │   ├── selection_trace.cpython-314.pyc
+│   │   │   │   ├── signal_arbitrator.cpython-314.pyc
+│   │   │   │   ├── signal_extractor.cpython-314.pyc
+│   │   │   │   ├── signal_normalizer.cpython-314.pyc
+│   │   │   │   └── signal_schema.cpython-314.pyc
+│   │   │   ├── confidence_engine.py
+│   │   │   ├── constraint_resolver.py
+│   │   │   ├── governance_state.py
+│   │   │   ├── governed_adaptation.py
+│   │   │   ├── governed_runtime.py
+│   │   │   ├── orchestration_health.py
+│   │   │   ├── oscillation_detector.py
+│   │   │   ├── priority_resolver.py
+│   │   │   ├── routing_history_loader.py
+│   │   │   ├── routing_trace.py
+│   │   │   ├── routing_trace_store.py
+│   │   │   ├── selection_trace.py
+│   │   │   ├── signal_arbitrator.py
+│   │   │   ├── signal_extractor.py
+│   │   │   ├── signal_normalizer.py
+│   │   │   └── signal_schema.py
+│   │   ├── sessions.py
+│   │   ├── tasks.py
+│   │   └── validators.py
+│   ├── static
+│   │   ├── js
+│   │   │   └── deception.js
+│   │   ├── style.css
+│   │   └── style.css.save
+│   ├── tasks
+│   │   ├── __pycache__
+│   │   │   └── task_registry.cpython-314.pyc
+│   │   ├── pattern_recognition.json
+│   │   ├── strategy_under_constraint_v1.json
+│   │   └── task_registry.py
+│   ├── templates
+│   │   ├── admin
+│   │   │   └── dashboard.html
+│   │   ├── admin_dashboard.html
+│   │   ├── admin_login.html
+│   │   ├── cog_task.html
+│   │   ├── dashboard.html
+│   │   ├── decoy.html
+│   │   ├── decoy_thanks.html
+│   │   ├── demo.html
+│   │   ├── fake_login.html
+│   │   ├── fake_login_wait.html
+│   │   ├── index.html
+│   │   ├── puzzle.html
+│   │   ├── puzzles.html
+│   │   ├── second_puzzle.html
+│   │   └── tasks
+│   │       └── pattern_recognition.html
+│   ├── tests
+│   │   ├── __init__.py
+│   │   ├── test_session_summary_contract.py
+│   │   └── test_summary_schema_enforcement.py
+│   └── utils
+│       ├── __init__.py
+│       ├── __pycache__
+│       │   ├── __init__.cpython-314.pyc
+│       │   ├── helpers.cpython-314.pyc
+│       │   ├── logging.cpython-314.pyc
+│       │   ├── metrics.cpython-314.pyc
+│       │   ├── session_loader.cpython-314.pyc
+│       │   ├── session_summaries.cpython-314.pyc
+│       │   ├── storage.cpython-314.pyc
+│       │   ├── summary_adapter.cpython-314.pyc
+│       │   ├── summary_validator.cpython-314.pyc
+│       │   ├── trajectory_artifact.cpython-314.pyc
+│       │   └── trajectory_dynamics.cpython-314.pyc
+│       ├── helpers.py
+│       ├── logging.py
+│       ├── metrics.py
+│       ├── session_loader.py
+│       ├── session_summaries.py
+│       ├── storage.py
+│       ├── summary_adapter.py
+│       ├── summary_validator.py
+│       ├── trajectory_artifact.py
+│       └── trajectory_dynamics.py
+├── config
+│   ├── pilot.py
+│   └── pilot_settings.json
+├── docs
+│   ├── CHANGELOG_internal.md
+│   ├── CHANGELOG_public.md
+│   ├── DPA.md
+│   ├── DPA_strict.md
+│   ├── DPA_template.md
+│   ├── DPIA.md
+│   ├── DPIA_strict.md
+│   ├── DPIA_summary.md
+│   ├── README.md
+│   ├── SLA.md
+│   ├── SLA_strict.md
+│   ├── admin_access_control.md
+│   ├── admin_access_control_strict.md
+│   ├── admin_policy.md
+│   ├── audit_policy_public.md
+│   ├── audit_policy_strict.md
+│   ├── backup_recovery.md
+│   ├── bcdr.md
+│   ├── bcdr_strict.md
+│   ├── branching_policy_strict.md
+│   ├── business_continuity_public.md
+│   ├── business_continuity_strict.md
+│   ├── change_log_policy.md
+│   ├── change_log_policy_strict.md
+│   ├── change_management_public.md
+│   ├── change_management_strict.md
+│   ├── changelog_policy.md
+│   ├── changelog_policy_strict.md
+│   ├── consent_flow.md
+│   ├── data_retention_policy_strict.md
+│   ├── data_subject_rights.md
+│   ├── data_subject_rights_public.md
+│   ├── data_subject_rights_sop.md
+│   ├── data_subject_rights_sop_strict.md
+│   ├── data_subject_rights_strict.md
+│   ├── deployment.md
+│   ├── deployment_policy.md
+│   ├── deployment_policy_strict.md
+│   ├── deployment_security.md
+│   ├── deployment_security_strict.md
+│   ├── iam_roles_public.md
+│   ├── iam_roles_strict.md
+│   ├── incident_response_plan.md
+│   ├── incident_runbook.md
+│   ├── incident_runbook_quick.md
+│   ├── maintenance_sop.md
+│   ├── maintenance_sop_strict.md
+│   ├── misuse_prevention.md
+│   ├── model_card.md
+│   ├── model_change_control.md
+│   ├── model_change_control_strict.md
+│   ├── monitoring_playbook.md
+│   ├── operational_boundaries.md
+│   ├── pilot_readiness_checklist.md
+│   ├── privacy_notice.md
+│   ├── processors.md
+│   ├── release_management.md
+│   ├── release_management_strict.md
+│   ├── release_overview.md
+│   ├── release_process_strict.md
+│   ├── retention_policy_public.md
+│   ├── security_hardening.md
+│   ├── support_escalation_sop.md
+│   ├── support_escalation_sop_strict.md
+│   ├── system_modes.md
+│   ├── system_readiness.md
+│   ├── system_readiness_checklist.md
+│   └── system_validation.md
+├── governance
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   └── __init__.cpython-314.pyc
+│   └── validation
+│       ├── LONGITUDINAL_VALIDATION.md
+│       ├── README.md
+│       ├── __init__.py
+│       ├── __pycache__
+│       │   ├── __init__.cpython-314.pyc
+│       │   ├── arbitration.cpython-314.pyc
+│       │   ├── assertions.cpython-314.pyc
+│       │   ├── constants.cpython-314.pyc
+│       │   ├── governance_envelope.cpython-314.pyc
+│       │   ├── governance_timeline.cpython-314.pyc
+│       │   ├── governed_execution.cpython-314.pyc
+│       │   ├── invariants.cpython-314.pyc
+│       │   ├── longitudinal_simulation.cpython-314.pyc
+│       │   ├── orchestration_constraints.cpython-314.pyc
+│       │   ├── orchestration_mediation.cpython-314.pyc
+│       │   ├── oscillation_analysis.cpython-314.pyc
+│       │   ├── persistence_envelope.cpython-314.pyc
+│       │   ├── progression_interpreter.cpython-314.pyc
+│       │   ├── reporting.cpython-314.pyc
+│       │   ├── runtime_normalization.cpython-314.pyc
+│       │   ├── runtime_schema.cpython-314.pyc
+│       │   ├── scenario_profiles.cpython-314.pyc
+│       │   ├── telemetry.cpython-314.pyc
+│       │   ├── topology.cpython-314.pyc
+│       │   ├── topology_validation.cpython-314.pyc
+│       │   └── violations.cpython-314.pyc
+│       ├── arbitration.py
+│       ├── assertions.py
+│       ├── constants.py
+│       ├── governance_envelope.py
+│       ├── governance_timeline.py
+│       ├── governed_execution.py
+│       ├── invariants.py
+│       ├── longitudinal_simulation.py
+│       ├── orchestration_constraints.py
+│       ├── orchestration_mediation.py
+│       ├── oscillation_analysis.py
+│       ├── persistence_envelope.py
+│       ├── progression_interpreter.py
+│       ├── reporting.py
+│       ├── runtime_normalization.py
+│       ├── runtime_schema.py
+│       ├── scenario_profiles.py
+│       ├── simulation_registry.py
+│       ├── telemetry.py
+│       ├── topology.py
+│       ├── topology_validation.py
+│       └── violations.py
+├── logs
+├── processors
+│   ├── __init__.py
+│   ├── event_logger.py
+│   └── mock_events.py
+├── schemas
+│   ├── behavioral_schema.json
+│   └── task_catalog.json
+└── test_data
+    └── session_data.json
+
+49 directories, 295 files
