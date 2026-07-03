@@ -22,7 +22,7 @@ def generate_insights(summary: dict) -> dict:
             )
         elif accuracy >= 0.5:
             insights["accuracy"].append(
-                "Accuracy is developing; performance improves with continued practice."
+                "Current accuracy indicates performance remains variable within this observation window."
             )
         else:
             insights["accuracy"].append(

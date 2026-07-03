@@ -358,7 +358,6 @@ def _map_pattern_to_ontology(pattern: str) -> Dict[str, str]:
 
     return result
 
-
 def summarize_categories(cats, max_display=4):
     if len(cats) <= max_display:
         return ", ".join(cats)
@@ -454,6 +453,49 @@ def _analyze_temporal_behavior(
         latency_trend = "stable"
 
     # -----------------------------------
+    # Retry trend
+    # -----------------------------------
+
+    def average_effective_retries(block):
+        if not block:
+            return 0
+
+        effective_retries = []
+
+        for a in block:
+            raw = a.get("raw", {})
+            metrics = raw.get("metrics", {})
+
+            retries = metrics.get("retries", 1)
+
+            effective_retries.append(
+                max(0, retries - 1)
+            )
+
+        return (
+            sum(effective_retries)
+            / len(effective_retries)
+        )
+
+    early_retry = average_effective_retries(early)
+    late_retry = average_effective_retries(late)
+
+    RETRY_TREND_DELTA = 0.25
+
+    # Initial threshold.
+    # Subject to validation during the
+    # fatigue signal validation sprint.
+
+    if late_retry > early_retry + RETRY_TREND_DELTA:
+        retry_trend = "increasing"
+
+    elif late_retry < early_retry - RETRY_TREND_DELTA:
+        retry_trend = "decreasing"
+
+    else:
+        retry_trend = "stable"
+
+    # -----------------------------------
     # Confidence trend
     # -----------------------------------
     retry_values = []
@@ -479,25 +521,46 @@ def _analyze_temporal_behavior(
     # -----------------------------------
     # Fatigue risk
     # -----------------------------------
+
+    # Fatigue classifications consume only
+    # independent observational signals.
+    #
+    # Single observations are insufficient
+    # to classify fatigue.
+    #
+    # See:
+    # - Finding 09
+    # - Finding 14
+    # - Finding 15
+    # - Finding 16
+
     fatigue_risk = "low"
 
+    # Moderate fatigue:
+    # Requires corroborating evidence from
+    # slowing response latency and declining accuracy.
     if (
-        accuracy_trend == "declining"
-        and latency_trend == "slowing_down"
-    ):
-        fatigue_risk = "elevated"
-
-    elif (
         latency_trend == "slowing_down"
-        or confidence_trend == "fluctuating"
+        and accuracy_trend == "declining"
     ):
         fatigue_risk = "moderate"
+
+    # Elevated fatigue:
+    # Requires an additional corroborating
+    # observation (increasing retry behaviour).
+    if (
+        latency_trend == "slowing_down"
+        and accuracy_trend == "declining"
+        and retry_trend == "increasing"
+    ):
+        fatigue_risk = "elevated"
 
     return {
         "status": "ok",
 
         "accuracy_trend": accuracy_trend,
         "latency_trend": latency_trend,
+        "retry_trend": retry_trend,
         "confidence_trend": confidence_trend,
         "fatigue_risk": fatigue_risk,
         "trajectory_shape": (
@@ -668,12 +731,12 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
 
         if pattern_groups["deliberate"]:
             behavior_notes.append(
-                f"You tend to perform better when you take time to think carefully, particularly in {summarize_categories(pattern_groups['deliberate'])} tasks."
+                f"Higher accuracy was frequently observed during responses with longer response times, particularly in {summarize_categories(pattern_groups['deliberate'])} tasks."
             )
 
         if pattern_groups["fast"]:
             behavior_notes.append(
-                f"Quick responses may reduce accuracy in {summarize_categories(pattern_groups['fast'])} tasks."
+                f"Lower accuracy was frequently observed during faster responses in {summarize_categories(pattern_groups['fast'])} tasks."
             )
 
         if pattern_groups["uncertain"]:
@@ -950,12 +1013,12 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
 
         if pattern == "fast but inaccurate":
             cross_insights.append(
-                f"Faster responses tend to reduce accuracy in {readable_cat} tasks."
+                f"Lower accuracy was frequently observed alongside faster responses in {readable_cat} tasks."
             )
 
         elif pattern == "deliberate and accurate":
             cross_insights.append(
-                f"Taking more time improves accuracy in {readable_cat} tasks."
+                f"Higher accuracy was observed alongside longer response times in {readable_cat} tasks."
             )
 
         elif pattern == "balanced":

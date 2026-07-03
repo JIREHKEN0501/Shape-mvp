@@ -476,3 +476,348 @@ Higher accuracy was observed alongside longer response times
 or
 
 Correct responses were frequently associated with longer response times
+
+# Finding 14
+
+Title:
+
+Effort And Fatigue Are Distinct Signals
+
+Status:
+
+Observed
+
+Severity:
+
+High
+
+Area:
+
+Temporal Analysis
+
+Summary:
+
+Validation Trial 01 and subsequent signal audits suggest that increasing latency may represent multiple phenomena, including:
+
+* increasing effort
+* deliberation
+* adaptation
+* fatigue
+
+Current HumanOS fatigue classification allows latency increases to contribute directly to fatigue risk escalation, even when:
+
+* accuracy remains stable
+* retries remain stable
+* hesitation remains stable
+
+This creates a false-positive risk.
+
+A participant demonstrating effort-related latency increases may currently receive a moderate fatigue classification despite showing no observable performance degradation.
+
+Latency alone is insufficient evidence of fatigue.
+
+Latency establishes that a participant is slowing down.
+
+Additional corroborating evidence is required before fatigue becomes a defensible interpretation.
+
+Implications:
+
+* Participant summaries may overstate fatigue risk.
+* Evaluator comparisons may be influenced by unsupported fatigue classifications.
+* Validation studies may measure disagreement caused by interpretation design rather than genuine signal disagreement.
+* Strong performers may be incorrectly characterized when maintaining accuracy under increasing effort.
+
+Validation Evidence:
+
+Validation Trial 01 produced a participant profile demonstrating:
+
+* 100% accuracy
+* zero incorrect responses
+* stable performance
+* minimal hesitation
+
+HumanOS output:
+
+* latency_trend = slowing_down
+* fatigue_risk = moderate
+
+Independent evaluators interpreted the pattern primarily as increasing effort rather than fatigue.
+
+This discrepancy motivated a formal audit of fatigue classification logic.
+
+Outcome:
+
+* Fatigue Risk Audit completed.
+* Effort Signal Design proposal created.
+* Fatigue remediation design initiated.
+
+Future Direction:
+
+Separate effort-related observations from fatigue-related observations.
+
+Future fatigue escalation should require multiple supporting indicators rather than latency trends alone.
+
+Related Findings:
+
+* Finding 08 — Cross-Domain Insights Were Template-Driven Rather Than Evidence-Driven
+* Finding 09 — Fatigue Risk Trigger Was Over-Sensitive
+
+```
+
+Status Notes:
+
+Finding 14 does not propose a solution.
+
+It records an observed limitation discovered through validation evidence.
+
+Implementation decisions remain pending future validation and remediation work.
+```
+
+# Finding 15
+
+Title:
+
+Derived Signals Can Be Double-Counted During Routing
+
+Status:
+
+Observed
+
+Severity:
+
+High
+
+Area:
+
+Routing / Signal Arbitration
+
+Summary:
+
+Routing inspections revealed that HumanOS currently treats certain derived signals and source signals as independent routing evidence.
+
+A notable example exists between:
+
+* latency_trend
+* fatigue_risk
+
+Current analytics logic allows fatigue_risk to be generated from latency observations.
+
+However, both signals are independently emitted into the routing pipeline and independently influence arbitration decisions.
+
+This creates a dependency violation.
+
+The routing layer may interpret a single underlying observation as multiple pieces of evidence.
+
+Observed Dependency Chain:
+
+```text
+latency_trend
+        ↓
+fatigue_risk
+        ↓
+routing signal
+
+AND
+
+latency_trend
+        ↓
+routing signal
+```
+
+Result:
+
+A single latency observation may contribute to:
+
+* stabilization decisions
+* difficulty reduction decisions
+
+through multiple pathways.
+
+Implications:
+
+* Signal confidence may be inflated.
+* Routing decisions may appear supported by multiple signals when only one underlying observation exists.
+* Participants demonstrating increased effort or deliberation may receive unnecessary stabilization.
+* Validation results may be distorted by signal architecture rather than behavioral evidence.
+
+Validation Evidence:
+
+Routing Signal Dependency Audit
+
+Date:
+
+2026-06-19
+
+Supporting Inspection:
+
+* signal_extractor.py
+* signal_arbitrator.py
+* routing_trace_log.jsonl
+
+Outcome:
+
+Dependency audit initiated.
+
+Routing ownership and signal dependency relationships under review.
+
+Future Direction:
+
+Investigate dependency-aware routing.
+
+Consider:
+
+* source vs derived signal distinction
+* signal lineage tracking
+* arbitration de-duplication
+* dependency-aware confidence calculations
+
+Status Notes:
+
+This finding is distinct from:
+
+* Finding 09 (fatigue threshold sensitivity)
+* Finding 14 (effort versus fatigue interpretation)
+
+This finding concerns routing architecture and evidence handling.
+
+# Finding 16
+
+Title:
+
+Trial 01 Did Not Meaningfully Exercise Retry Trend
+
+Status:
+
+Observed
+
+Severity:
+
+Medium
+
+Area:
+
+Temporal Behavior Analysis
+
+Summary:
+
+The newly introduced `retry_trend` observational signal was validated across all available Trial 01 participants.
+
+Validation completed successfully with no implementation failures or runtime regressions.
+
+Across all observed participants:
+
+* retry_trend = stable
+
+No participants produced:
+
+* retry_trend = increasing
+* retry_trend = decreasing
+
+Inspection of participant retry histories showed negligible effective retry variation throughout the observed sessions.
+
+Observed Pattern:
+
+```text
+effective retries
+
+0
+0
+0
+0
+0
+0
+
+↓
+
+early average = 0
+late average = 0
+
+↓
+
+retry_trend = stable
+```
+
+Result:
+
+The implementation behaved as designed.
+
+The available Trial 01 dataset did not meaningfully exercise the retry_trend signal.
+
+Implications:
+
+* retry_trend implementation is functioning correctly.
+* Current validation data cannot evaluate the discriminative capability of retry_trend.
+* The Elevated fatigue pathway cannot yet be empirically exercised through retry behavior.
+* Additional validation using datasets with greater retry variation will be required.
+
+Validation Evidence:
+
+Retry Trend Validation
+
+Date:
+
+2026-06-28
+
+Supporting Inspection:
+
+* analytics.py
+* generate_participant_summary()
+* Trial 01 participant summaries (n = 98)
+
+Outcome:
+
+Implementation verified.
+
+Behavioral validation remains limited by dataset characteristics.
+
+Future Direction:
+
+Investigate retry behavior during Trial 02.
+
+Potential areas for investigation include:
+
+* task characteristics
+* interface behavior
+* participant strategy
+* validation dataset composition
+
+No single explanation is currently supported by the available evidence.
+
+Status Notes:
+
+This finding extends:
+
+* Finding 09 (fatigue threshold sensitivity)
+* Finding 14 (effort versus fatigue separation)
+
+This finding concerns validation coverage rather than implementation correctness.
+
+Sprint Outcome
+
+Objective
+
+Replace the fatigue classifier with an evidence-based runtime contract.
+
+Result
+
+Completed.
+
+Implementation
+
+Added retry-based corroboration pathway.
+Removed confidence-derived fatigue inference.
+Introduced independent fatigue classification logic.
+Preserved observation-first architecture.
+
+Validation
+
+Regression successful.
+98 participants evaluated.
+No implementation regressions observed.
+Expected classification changes confirmed.
+
+Remaining limitation
+
+Trial 01 does not meaningfully exercise retry-dependent Elevated fatigue classification.
+
+Future validation required.
