@@ -2,7 +2,7 @@
 
 Date: 2026-06-28
 
-Status: Proposed
+Status: implemented(validatio ongoing)
 
 Area: Temporal Behavior / Routing
 
@@ -260,7 +260,7 @@ Status: Completed.
 
 Implement redesigned fatigue classification logic.
 
-Status: Pending.
+Status: Completed.
 
 ---
 
@@ -268,7 +268,7 @@ Status: Pending.
 
 Validate the redesigned model using synthetic datasets and evaluator review.
 
-Status: Pending.
+Status: In progress.
 
 ---
 
