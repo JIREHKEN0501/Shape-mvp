@@ -37,7 +37,20 @@ def extract_routing_signals(
                 value=fatigue,
                 confidence=0.75,
                 priority=3,
-                source="temporal_behavior"
+                source="temporal_behavior",
+                metadata={
+                    "evidence_class": "interpretation",
+                    "dependencies": [
+                        "latency_trend",
+                        "accuracy_trend",
+                        "retry_trend"
+                    ],
+                    "independent_observations": [
+                        "latency_trend",
+                        "accuracy_trend",
+                        "retry_trend"
+                    ]
+                }
             )
         )
 
@@ -50,7 +63,14 @@ def extract_routing_signals(
                 value=latency,
                 confidence=0.65,
                 priority=2,
-                source="temporal_behavior"
+                source="temporal_behavior",
+                metadata={
+                    "evidence_class": "observation",
+                    "dependencies": [],
+                    "independent_observations": [
+                        "latency_trend"
+                    ]
+                } 
             )
         )
 
@@ -63,7 +83,16 @@ def extract_routing_signals(
                 value=confidence_trend,
                 confidence=0.8,
                 priority=3,
-                source="temporal_behavior"
+                source="temporal_behavior",
+                metadata={
+                    "evidence_class": "interpretation",
+                    "dependencies": [
+                        "retry_trend"
+                    ],
+                    "independent_observations": [
+                        "retry_trend"
+                    ]
+                }
             )
         )
 
@@ -76,7 +105,14 @@ def extract_routing_signals(
                 value=accuracy_trend,
                 confidence=0.7,
                 priority=2,
-                source="temporal_behavior"
+                source="temporal_behavior",
+                metadata={
+                    "evidence_class": "observation",
+                    "dependencies": [],
+                    "independent_observations": [
+                        "accuracy_trend"
+                    ]
+                }
             )
         )
 
@@ -93,7 +129,16 @@ def extract_routing_signals(
                 value=likely_style,
                 confidence=0.6,
                 priority=2,
-                source="behavior_prediction"
+                source="behavior_prediction",
+                metadata={
+                    "evidence_class": "prediction",
+                    "dependencies": [
+                        "category_patterns"
+                    ],
+                    "independent_observations": [
+                        "category_behavior"
+                    ]
+                }
             )
         )
 
@@ -106,7 +151,16 @@ def extract_routing_signals(
                 value=risk,
                 confidence=0.7,
                 priority=3,
-                source="behavior_prediction"
+                source="behavior_prediction",
+                metadata={
+                    "evidence_class": "prediction",
+                    "dependencies": [
+                        "category_patterns"
+                     ],
+                     "independent_observations": [
+                         "category_behavior"
+                     ]
+                }
             )
         )
 
@@ -127,7 +181,14 @@ def extract_routing_signals(
                 value=pattern_text,
                 confidence=0.55,
                 priority=1,
-                source="pattern_analysis"
+                source="pattern_analysis",
+                metadata={
+                    "evidence_class": "interpretation",
+                    "dependencies": [
+                        "patterns"
+                    ],
+                    "independent_observations": []
+                }
             )
         )
 
