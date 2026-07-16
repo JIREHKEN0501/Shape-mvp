@@ -32,7 +32,7 @@ class SignalArbitrator:
         # -----------------------------------
 
         for signal in signals:
-            signal_map[signal.signal_type] = signal.value
+            signal_map[signal.signal_type] = signal
 
         # ===================================
         # FATIGUE-BASED STABILIZATION
@@ -40,7 +40,7 @@ class SignalArbitrator:
 
         fatigue = signal_map.get("fatigue_risk")
 
-        if fatigue in ["moderate", "elevated"]:
+        if fatigue and fatigue.value in ["moderate", "elevated"]:
             decisions["stabilize"] = True
 
             decisions["reasons"].append(
@@ -53,7 +53,7 @@ class SignalArbitrator:
 
         latency = signal_map.get("latency_trend")
 
-        if latency == "slowing_down":
+        if latency and latency.value == "slowing_down":
             decisions["reduce_difficulty"] = True
 
             decisions["reasons"].append(
@@ -66,7 +66,7 @@ class SignalArbitrator:
 
         accuracy = signal_map.get("accuracy_trend")
 
-        if accuracy == "improving":
+        if accuracy and accuracy.value == "improving":
             decisions["increase_difficulty"] = True
 
             decisions["reasons"].append(

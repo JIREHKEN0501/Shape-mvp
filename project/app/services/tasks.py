@@ -166,6 +166,10 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+from project.app.services.analytics import (
+    generate_participant_summary
+)
+
 from project.app.services.routing.signal_extractor import (
     extract_routing_signals
 )
@@ -512,6 +516,7 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     a small 'meta' block with how it was chosen.
     """
     # 1) Load participant history from logs.
+    
     events = _load_participant_events(participant_id)
     # Extract previously seen task IDs
     seen_ids = {
@@ -519,13 +524,17 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         for e in events
         if e.get("event_type") == "task_attempt" and e.get("task_id")
     }
-    summary = _summarise_history(events)
+    selection_summary = _summarise_history(events)
+    
+    participant_summary = generate_participant_summary(
+        participant_id
+    )
 
     # 🔮 Pull prediction signals
-    prediction = summary.get("behavior_prediction", {})
+    prediction = participant_summary.get("behavior_prediction", {})
 
     # ⏳ Temporal behavioral signals
-    temporal = summary.get("temporal_behavior", {})
+    temporal = participant_summary.get("temporal_behavior", {})
 
     fatigue_risk = temporal.get("fatigue_risk")
     latency_trend = temporal.get("latency_trend")
@@ -533,13 +542,17 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     confidence_trend = temporal.get("confidence_trend")
 
     # 🧠 Behavioral adaptation strategy
-    behavior_strategy = choose_behavior_strategy(summary)
+    behavior_strategy = choose_behavior_strategy(
+        participant_summary
+    )
 
     # =====================================
     # 🧠 Routing orchestration pipeline
     # =====================================
 
-    routing_signals = extract_routing_signals(summary)
+    routing_signals = extract_routing_signals(
+        participant_summary
+    )
 
     normalized_signals = normalize_signals(
         routing_signals
@@ -627,9 +640,14 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     by_category = _build_catalog_index()
 
     # 3) Choose category and difficulty.
-    chosen_category = _choose_category(summary, by_category)
+    chosen_category = _choose_category(
+        selection_summary,
+        by_category
+    )
     base_difficulty = _choose_difficulty_for_category(
-        chosen_category, summary, by_category
+        chosen_category,
+        selection_summary,
+        by_category
     )
 
     chosen_difficulty = base_difficulty
@@ -889,8 +907,8 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         # -----------------------------
         # Weaker categories get priority
         # -----------------------------
-        attempts = summary["attempts_by_category"].get(cat, 0)
-        correct = summary["correct_by_category"].get(cat, 0)
+        attempts = selection_summary["attempts_by_category"].get(cat, 0)
+        correct = selection_summary["correct_by_category"].get(cat, 0)
 
         if attempts == 0:
             accuracy = 0.5

@@ -137,3 +137,43 @@ Populate governance metadata during signal extraction.
 Interpret dependency-aware metadata during runtime arbitration.
 Extend runtime traceability with dependency-aware information.
 Validate ADR-009 compliance.
+
+
+New Finding
+Finding R-009-02: Routing Consumes a Legacy Participant Summary
+
+Observation
+
+The adaptive routing pipeline currently derives routing decisions from _summarise_history(events) rather than the governed participant summary produced by generate_participant_summary(participant_id).
+
+Evidence
+
+Runtime investigation demonstrated:
+
+generate_participant_summary() produces:
+temporal_behavior
+behavior_prediction
+patterns
+resolved_behavior_patterns
+governed interpretations
+_summarise_history() produces only:
+attempted_task_ids
+attempts_by_category
+correct_by_category
+difficulties_by_category
+
+Consequently:
+
+extract_routing_signals() receives incomplete participant summaries during runtime.
+Routing signals are not generated despite governed analytics existing.
+Runtime routing traces contain empty signals_considered.
+
+Architectural Impact
+
+HumanOS currently maintains two independent participant summary pipelines.
+
+This creates divergence between governed analytics and adaptive routing.
+
+Recommendation
+
+Adaptive routing shall consume the governed participant summary as its canonical evidence source.

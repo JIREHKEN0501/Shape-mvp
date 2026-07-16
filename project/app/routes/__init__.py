@@ -221,7 +221,6 @@ def task_detail(task_id):
         return jsonify({"ok": False, "error": "task_not_found"}), 404
     return jsonify({"ok": True, "task": task}), 200
 
-
 @main.route("/tasks/next/<participant_id>")
 def tasks_next(participant_id):
     """
@@ -230,16 +229,30 @@ def tasks_next(participant_id):
     Uses the participant's history (from logs/data_log.jsonl) plus
     the current TASK_CATALOG to pick a suitable next task.
     """
-    task = get_next_task_for_participant(participant_id)
 
-    # 🚨 If no task available (end of session), return cleanly
-    if not task.get("ok", True):
+    try:
+        task = get_next_task_for_participant(participant_id)
+
+        # 🚨 If no task available (end of session), return cleanly
+        if not task.get("ok", True):
+            return jsonify({
+                "ok": False,
+                "message": task.get("message", "No tasks available")
+            })
+
         return jsonify({
-            "ok": False,
-            "message": task.get("message", "No tasks available")
+            "ok": True,
+            "task": task
         })
 
-    return jsonify({"ok": True, "task": task})
+    except Exception:
+        import traceback
+        traceback.print_exc()
+
+        return jsonify({
+            "ok": False,
+            "error": "Internal server error"
+        }), 500
 
 
 @main.route("/metrics/summary/<participant_id>", methods=["GET"])
