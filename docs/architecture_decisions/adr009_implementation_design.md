@@ -54,7 +54,7 @@ Required metadata:
 
 ---
 
-# Work Package 2
+# Work Package 2 ( Canonical Evidence Alignment)
 
 ## Dependency-Aware Arbitration
 
@@ -99,7 +99,7 @@ ADR-009 implementation will align adaptive routing with the governed participant
 This establishes the governed participant summary as the canonical evidence source for adaptive routing.
 
 
-## Work Package 2 — Canonical Evidence Alignment
+## Work Package 2 —( Canonical Evidence Alignment)
 
 Objective
 ---------
@@ -153,3 +153,74 @@ Runtime validation confirmed:
 Adaptive routing now consumes the governed participant summary rather than
 the lightweight task-selection summary, establishing the foundation for
 dependency-aware evidence consumption in subsequent ADR-009 work packages.
+
+## Work Package 3 — Dependency-aware Evidence Consumption
+
+Work Package 3 introduces layered arbitration. Rather than evaluating routing signals as independent peers in a flat scan, the arbitrator shall evaluate evidence through sequential reasoning layers: Evidence Quality, Evidence Role, Evidence Independence, Directive Formation, and Conflict Resolution. Each layer determines whether and how evidence progresses to the next stage.
+
+### Objective
+
+Enable the routing arbitrator to reason over the quality, independence, and evidential role of routing evidence while preserving deterministic routing behaviour.
+
+### Design Principles
+
+1. The arbitrator shall reason over independent evidence, not simply over the number of routing signals.
+
+2. Confidence shall function as a quality gate for routing evidence rather than as a direct weighting mechanism.
+
+3. Routing priorities shall resolve conflicts between competing directives and shall not independently create routing decisions.
+
+4. Evidence classes define the evidential role of a signal:
+   - Observations establish facts about the current session.
+   - Interpretations explain observed behaviour and shall consider dependency structure.
+   - Predictions anticipate future behaviour and may reinforce, but shall not independently establish, routing directives.
+
+5. Dependency metadata shall be used to prevent amplification caused by multiple derived signals sharing the same underlying observations.
+
+### Implementation Strategy
+
+Stage 1
+- Introduce confidence gating.
+
+Stage 2
+- Introduce dependency-aware reasoning using dependency metadata and independent observation tracking.
+
+Stage 3
+- Introduce evidence-class semantics.
+- Note: This stage may require a small refactor of the arbitrator's decision structure so that routing logic can distinguish between evidential roles rather than processing all signals uniformly.
+
+Stage 4
+- Introduce priority-aware conflict resolution.
+
+### Future Architectural Improvement
+
+Confidence values are currently assigned as fixed constants during signal extraction. Future work should derive confidence from the strength, consistency, and quantity of supporting evidence rather than predefined values.
+
+### Arbitration Pipeline
+
+The routing arbitrator evaluates routing evidence in sequential stages:
+
+1. Evidence Quality
+2. Evidence Role
+3. Dependency Assessment
+4. Directive Evaluation
+5. Conflict Resolution
+
+Each stage narrows the candidate evidence available to subsequent stages.
+
+Later stages shall not compensate for failures at earlier stages.
+
+Instead of evaluating each signal independently, the arbitrator evaluates the evidential legitimacy of signals before allowing them to contribute to routing decisions."
+
+#Future Work
+
+Signal confidence is currently assigned using fixed values during extraction.
+
+A future routing enhancement may derive confidence dynamically from:
+
+- observation consistency
+- temporal stability
+- supporting evidence quantity
+- dependency quality
+
+This enhancement is intentionally outside the scope of ADR-009 WP3.

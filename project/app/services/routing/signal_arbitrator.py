@@ -3,7 +3,63 @@ from typing import List, Dict, Any
 from .signal_schema import RoutingSignal
 
 
+
 class SignalArbitrator:
+    """
+    Resolve competing routing signals into routing directives.
+
+    IMPORTANT:
+    Arbitration governs session-level adaptation only.
+    It does NOT infer permanent psychological traits.
+    """
+
+    def _prepare_signals(
+        self,
+        signals: List[RoutingSignal]
+    ) -> List[RoutingSignal]:
+        """
+        Prepare routing evidence for arbitration.
+
+        Current responsibility:
+            - Pass through all routing signals.
+
+        Future responsibilities:
+            - Confidence gating.
+            - Evidence eligibility checks.
+        """
+        return signals
+
+    def _classify_signals(
+        self,
+        signals: List[RoutingSignal]
+    ) -> List[RoutingSignal]:
+        """
+        Classify routing evidence by evidential role.
+
+        Current responsibility:
+            - Pass through all routing signals.
+
+        Future responsibilities:
+            - Observation semantics.
+            - Interpretation semantics.
+            - Prediction semantics.
+        """
+        return signals
+
+    def _build_signal_map(
+        self,
+        signals: List[RoutingSignal]
+    ) -> Dict[str, RoutingSignal]:
+        """
+        Organize routing signals for arbitration.
+        """
+
+        signal_map = {}
+
+        for signal in signals:
+            signal_map[signal.signal_type] = signal
+
+        return signal_map
     """
     Resolve competing routing signals into routing directives.
 
@@ -25,14 +81,17 @@ class SignalArbitrator:
             "reasons": []
         }
 
-        signal_map = {}
+        prepared_signals = self._prepare_signals(
+            signals
+        )
 
-        # -----------------------------------
-        # Build lookup map
-        # -----------------------------------
+        classified_signals = self._classify_signals(
+            prepared_signals
+        )
 
-        for signal in signals:
-            signal_map[signal.signal_type] = signal
+        signal_map = self._build_signal_map(
+            classified_signals
+        )
 
         # ===================================
         # FATIGUE-BASED STABILIZATION
