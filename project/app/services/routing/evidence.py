@@ -10,6 +10,7 @@ signal preparation, classification, or routing logic.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 @dataclass(frozen=True)
 class EvidenceObservation:
