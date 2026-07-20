@@ -11,7 +11,6 @@ signal preparation, classification, or routing logic.
 
 from dataclasses import dataclass, field
 
-
 @dataclass(frozen=True)
 class EvidenceObservation:
     """
@@ -19,23 +18,44 @@ class EvidenceObservation:
 
     Attributes:
         kind:
-            The semantic name of the observation (e.g. "fatigue_risk").
+            The semantic kind of the observation
+            (e.g. "fatigue_risk", "latency_trend").
 
         value:
-            The interpreted value associated with the observation
-            (e.g. "low", "stable", "deliberate").
+            The interpreted value associated with the observation.
 
         confidence:
             Confidence score associated with the observation.
 
         priority:
             Relative importance of the observation during routing.
+
+        source:
+            Originating subsystem that produced the observation.
+
+        evidence_class:
+            The semantic role of the observation (e.g. observation,
+            interpretation, prediction).
+
+        dependencies:
+            Other observations that contributed to this interpretation.
+
+        independent_observations:
+            Independent observations supporting this evidence.
     """
 
     kind: str
-    value: str
-    confidence: str
-    priority: str
+    value: Any
+    confidence: float
+    priority: int
+
+    source: str
+
+    evidence_class: str | None = None
+
+    dependencies: tuple[str, ...] = field(default_factory=tuple)
+
+    independent_observations: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 
 from .signal_schema import RoutingSignal
 
+from .evidence_builder import EvidenceBuilder
 
 
 class SignalArbitrator:
@@ -60,13 +61,6 @@ class SignalArbitrator:
             signal_map[signal.signal_type] = signal
 
         return signal_map
-    """
-    Resolve competing routing signals into routing directives.
-
-    IMPORTANT:
-    Arbitration governs session-level adaptation only.
-    It does NOT infer permanent psychological traits.
-    """
 
     def resolve(
         self,
@@ -87,6 +81,10 @@ class SignalArbitrator:
 
         classified_signals = self._classify_signals(
             prepared_signals
+        )
+
+        evidence = EvidenceBuilder().build(
+            classified_signals
         )
 
         signal_map = self._build_signal_map(
