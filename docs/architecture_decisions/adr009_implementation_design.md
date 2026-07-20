@@ -224,3 +224,43 @@ A future routing enhancement may derive confidence dynamically from:
 - dependency quality
 
 This enhancement is intentionally outside the scope of ADR-009 WP3.
+
+Milestone 0
+-------------
+ADR-009 Validation
+
+• Run 98-participant validation
+• Sample representative routing traces
+• Verify governance
+• Verify confidence gating
+• Tag validated baseline
+
+Commit 1
+-------------
+Define immutable evidence model
+
+• TemporalEvidence
+• PredictionEvidence
+• PatternEvidence
+• GovernanceEvidence
+• EvidenceContext
+
+Commit 2
+-------------
+Implement Signal Preparation
+
+Commit 3
+-------------
+Implement Signal Classification
+
+Commit 4
+-------------
+Build EvidenceContext
+
+Commit 5
+-------------
+Refactor Directive Evaluation
+
+Commit 6
+-------------
+Validation + Documentation + Commit
