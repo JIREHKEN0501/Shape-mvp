@@ -2,6 +2,11 @@ from typing import List, Dict, Any
 
 from .signal_schema import RoutingSignal
 
+from .evidence import (
+    EvidenceContext,
+    EvidenceObservation,
+)
+
 from .evidence_builder import EvidenceBuilder
 
 
@@ -47,6 +52,35 @@ class SignalArbitrator:
         """
         return signals
 
+    def _find_observation(
+        self,
+        observations: tuple[EvidenceObservation, ...],
+        kind: str,
+    ) -> EvidenceObservation | None:
+        """
+        Return the first evidence observation of the requested kind.
+        """
+
+        for observation in observations:
+            if observation.kind == kind:
+                return observation
+
+        return None
+
+    def _get_temporal_observation(
+        self,
+        evidence: EvidenceContext,
+        kind: str,
+    ) -> EvidenceObservation | None:
+        """
+        Retrieve a temporal evidence observation by kind.
+        """
+
+        return self._find_observation(
+            evidence.temporal.observations,
+            kind,
+        )
+
     def _build_signal_map(
         self,
         signals: List[RoutingSignal]
@@ -87,6 +121,8 @@ class SignalArbitrator:
             classified_signals
         )
 
+        # signal_map retained during WP5 migration.
+        # Remove after all decision rules consume EvidenceContext directly.
         signal_map = self._build_signal_map(
             classified_signals
         )
@@ -95,7 +131,10 @@ class SignalArbitrator:
         # FATIGUE-BASED STABILIZATION
         # ===================================
 
-        fatigue = signal_map.get("fatigue_risk")
+        fatigue = self._get_temporal_observation(
+            evidence,
+            "fatigue_risk",
+        )
 
         if fatigue and fatigue.value in ["moderate", "elevated"]:
             decisions["stabilize"] = True
@@ -108,7 +147,10 @@ class SignalArbitrator:
         # LATENCY-BASED REDUCTION
         # ===================================
 
-        latency = signal_map.get("latency_trend")
+        latency = self._get_temporal_observation(
+            evidence,
+            "latency_trend",
+        )
 
         if latency and latency.value == "slowing_down":
             decisions["reduce_difficulty"] = True
@@ -121,7 +163,10 @@ class SignalArbitrator:
         # PERFORMANCE-BASED ESCALATION
         # ===================================
 
-        accuracy = signal_map.get("accuracy_trend")
+        accuracy = self._get_temporal_observation(
+            evidence,
+            "accuracy_trend",
+        )
 
         if accuracy and accuracy.value == "improving":
             decisions["increase_difficulty"] = True
