@@ -48,21 +48,6 @@ class SignalArbitrator:
         """
         return signals
 
-    def _build_signal_map(
-        self,
-        signals: List[RoutingSignal]
-    ) -> Dict[str, RoutingSignal]:
-        """
-        Organize routing signals for arbitration.
-        """
-
-        signal_map = {}
-
-        for signal in signals:
-            signal_map[signal.signal_type] = signal
-
-        return signal_map
-
     def resolve(
         self,
         signals: List[RoutingSignal]
@@ -90,12 +75,6 @@ class SignalArbitrator:
 
         evidence_query = EvidenceQuery(
             evidence
-        )
-
-        # signal_map retained during WP5 migration.
-        # Remove after all decision rules consume EvidenceContext directly.
-        signal_map = self._build_signal_map(
-            classified_signals
         )
 
         # ===================================
