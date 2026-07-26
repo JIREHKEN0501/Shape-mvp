@@ -1,6 +1,6 @@
 # ADR-009 Implementation Design
 
-Status: Draft
+Status: Accepted
 
 Date: 2026-07-13
 
@@ -26,11 +26,14 @@ The current routing architecture is already modular and largely compliant with A
 Current implementation status:
 
 - RoutingSignal Schema — Compliant
-- Signal Extractor — Metadata enrichment required
-- Signal Arbitrator — Dependency-aware interpretation required
+- Signal Extractor — Governance metadata implemented
+- Signal Arbitrator — Dependency-aware reasoning implemented
 - tasks.py — Compliant
 
 No structural redesign of the routing pipeline is required.
+ADR-009 was
+implemented through targeted enhancements to the existing routing architecture,
+preserving modularity and deterministic runtime behaviour.
 
 ---
 
@@ -148,6 +151,8 @@ Runtime validation confirmed:
 - Behavioral adaptation fields (likely_style, risk, trend) are populated.
 - Arbitration now responds to temporal evidence.
 - Adaptive task generation remains functional.
+- Architectural compliance verification passes using
+  `scripts/verify_adr009_compliance.py`.
 
 ### Architectural Outcome
 Adaptive routing now consumes the governed participant summary rather than
@@ -191,6 +196,40 @@ Stage 3
 
 Stage 4
 - Introduce priority-aware conflict resolution.
+
+
+# Compliance Verification
+
+ADR-009 implementation compliance is verified using:
+
+```text
+scripts/verify_adr009_compliance.py
+```
+
+The verifier validates the implemented routing architecture against the
+architectural requirements defined by ADR-009.
+
+Collectively, these checks verify that routing traces satisfy the implemented architectural invariants defined by ADR-009.
+Current verification includes:
+
+- Routing trace structure
+- Routing directive integrity
+- Reasoning and transparency metadata
+- Signal integrity
+- Dominant signal consistency
+
+Collectively, these verification checks confirm that implemented routing traces
+satisfy the architectural invariants established by ADR-009.
+
+Successful execution concludes with:
+
+```text
+ADR-009 COMPLIANCE : PASSED
+```
+
+indicating that the current implementation satisfies all implemented
+ADR-009 architectural verification checks.
+
 
 ### Future Architectural Improvement
 

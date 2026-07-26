@@ -1,6 +1,6 @@
 # ADR-009: Dependency-Aware Evidence Consumption
 
-Status: Draft
+Status: Accepted
 
 Date: 2026-07-13
 
@@ -200,6 +200,11 @@ These implementation requirements represent the minimum information necessary to
 ---
 
 # Compliance Criteria
+
+The following criteria define the architectural conditions that a compliant
+runtime implementation shall satisfy. Verification of these conditions is
+performed independently of the routing implementation and forms part of
+ADR-009 implementation validation.
 
 A routing implementation is considered compliant with ADR-009 only if all of the following conditions are satisfied.
 
