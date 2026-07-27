@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
 
 import json
+import argparse
 from pathlib import Path
 
 
-ROUTING_TRACE_LOG = Path("logs/routing_trace_log.jsonl")
+parser = argparse.ArgumentParser(
+    description="Verify ADR-009 routing trace compliance."
+)
+
+parser.add_argument(
+    "--trace-log",
+    default="logs/routing_trace_log.jsonl",
+    help="Path to routing trace JSONL file.",
+)
+
+args = parser.parse_args()
+
+ROUTING_TRACE_LOG = Path(args.trace_log)
 
 
 def load_routing_traces():

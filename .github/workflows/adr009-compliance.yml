@@ -33,4 +33,4 @@ jobs:
 
       - name: Verify ADR-009 Compliance
         run: |
-          python scripts/verify_adr009_compliance.py
+          python scripts/verify_adr009_compliance.py --trace-log tests/fixtures/routing_traces/adr009_reference.jsonl
