@@ -1,8 +1,117 @@
+docs
+├── ETHICS.md
+├── architecture_decisions
+│   ├── ADR-001-governance-threshold-centralization.md
+│   ├── ADR-002-snapshot-before-temporal-governance.md
+│   ├── ADR-003-incremental-runtime-schema-hardening.md
+│   ├── ADR-004-constitutional-runtime-schema-adoption.md
+│   ├── ADR-005-constrained-temporal-governance-adoption.md
+│   ├── ADR-006-constitutional-runtime-normalization.md
+│   ├── ADR-007-topology-aware-constitutional-enforcement.md
+│   ├── ADR-008-evidence-governance-and-conservation.md
+│   ├── ADR-009-dependency-aware-evidence-consumption.md
+│   ├── ADR-009-discovery-notes.md
+│   ├── adr009_architectural_conformance_review.md
+│   ├── adr009_implementation_design.md
+│   ├── fatigue_signal_remediation_design.md
+│   └── humanos_signal_registry.md
+├── architecture_overview.md
+├── behavioral_findings
+│   ├── archetype_robustness_findings.md
+│   ├── durability_hypothesis.md
+│   ├── longitudinal_stabilization_findings.md
+│   ├── participant_signal_audit.md
+│   ├── progression_semantic_translation.md
+│   └── stabilization_confidence_findings.md
+├── design_invariants.md
+├── design_principles.md
+├── development_logs
+│   ├── 2026-06-05_signal_quality_audit.md
+│   ├── 2026-06-08_validation_trial_01.md
+│   ├── 2026-06-10_trajectory_dynamics_v3.md
+│   ├── 2026-06-11_cross_domain_insight_audit.md
+│   ├── 2026-06-11_interpretation_layer_assessment.md
+│   ├── 2026-06-11_post_integration_findings.md
+│   ├── 2026-06-11_temporal_behavior_comparison.md
+│   ├── 2026-06-11_trajectory_dynamics_integration_plan.md
+│   ├── 2026-06-12_mock_evaluator_validation_trial_01.md
+│   ├── 2026-06-16_effort_signal_design.md
+│   ├── 2026-06-16_fatigue_risk_audit.md
+│   ├── 2026-06-16_interpretation_language_audit.md
+│   ├── 2026-06-19_routing_signal_dependency_audit.md
+│   ├── 2026-06-19_routing_signal_inventory.md
+│   ├── 2026-06-27_routing_signal_dependency_audit.md
+│   ├── 2026-07-10_interpretation_governance_audit.md
+│   └── 2026-07-11_interpretation_resolution_layer_audit.md
+├── experience_layer
+│   ├── README.md
+│   └── practitioner_notes.md
+├── findings
+│   └── findings_registry.md
+├── governance
+│   ├── ADR008_VERIFICATION_STRATEGY.md
+│   ├── ADR_COMPLIANCE.md
+│   ├── GOVERNANCE_INVENTORY.md
+│   └── evidence_dependency_registry.md
+├── governance_constitution_hierarchy.md
+├── governance_constitution_index.md
+├── governance_contradiction_arbitration_matrix.md
+├── governance_deadlock_semantics.md
+├── governance_enforcement_alignment.md
+├── governance_invariant_matrix.md
+├── governance_transition_topology.md
+├── governance_transition_validation_matrix.md
+├── governance_validation_plan.md
+├── longitudinal_validation_philosophy.md
+├── phase_13
+│   ├── external_longitudinal_model.md
+│   ├── humanos_architecture_overview.md
+│   ├── humanos_design_invariants.md
+│   ├── humanos_one_page.md
+│   ├── ml_observation_contract.md
+│   ├── ml_schemas
+│   │   ├── README.md
+│   │   └── task_difficulty_input.schema.json
+│   └── ml_task_structure_layer.md
+├── phase_3b5_freeze_assessment.md
+├── pilots
+│   ├── aviation
+│   │   ├── README.md
+│   │   └── aviation_pilot_readiness.md
+│   └── education
+│       ├── demo_script.md
+│       ├── education_demo_script.md
+│       └── education_pilot_walkthrough.md
+├── replay_safe_governance_persistence.md
+├── repo_reassessment_2026.md
+├── reviews
+│   └── ADR-009-conformance-review.md
+├── session_contract.md
+├── summary_schema.md
+├── summary_versioning.md
+├── system_principles.md
+├── validation
+│   ├── dataset_characterization.md
+│   ├── evaluator_observation_rubric.md
+│   ├── evaluator_rubric.md
+│   ├── evidence
+│   ├── humanos_longitudinal_findings.md
+│   ├── pilot_dataset_assessment.md
+│   ├── progression_validation_framework.md
+│   ├── sample_trajectory_reconstruction.md
+│   ├── trajectory_dynamics_v1_assessment.md
+│   ├── trajectory_reconstruction_framework.md
+│   ├── trial_01_artifacts.md
+│   ├── validation_evidence_registry.md
+│   ├── validation_trial_01.md
+│   └── validation_trial_protocol.md
+└── why_humanos_is_different.md
 project
 ├── README_PHASE3.md
 ├── __init__.py
 ├── __pycache__
-│   └── __init__.cpython-314.pyc
+│   ├── __init__.cpython-314.pyc
+│   └── analyze_events.cpython-314.pyc
 ├── analyze_events.py
 ├── app
 │   ├── __init__.py
@@ -31,31 +140,63 @@ project
 │   ├── helpers.py
 │   ├── ml
 │   │   ├── aggregation
+│   │   │   ├── __pycache__
+│   │   │   │   └── task_difficulty_aggregator.cpython-314.pyc
 │   │   │   └── task_difficulty_aggregator.py
 │   │   ├── generators
+│   │   │   ├── __pycache__
+│   │   │   │   └── session_simulator.cpython-314.pyc
 │   │   │   └── session_simulator.py
 │   │   ├── integration
 │   │   │   └── task_metadata_update.py
 │   │   ├── models
+│   │   │   ├── __pycache__
+│   │   │   │   └── task_difficulty_model_v0.cpython-314.pyc
 │   │   │   ├── task_difficulty_model_v0.py
 │   │   │   └── versions
 │   │   │       └── v1_0_0_manifest.json
 │   │   ├── monitoring
+│   │   │   ├── __pycache__
+│   │   │   │   └── task_drift_monitor.cpython-314.pyc
 │   │   │   ├── drift_detector.py
 │   │   │   └── task_drift_monitor.py
 │   │   ├── quality
 │   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-314.pyc
+│   │   │   │   ├── data_quality_monitor.cpython-314.pyc
+│   │   │   │   └── session_quality_monitor.cpython-314.pyc
 │   │   │   ├── data_quality_monitor.py
 │   │   │   └── session_quality_monitor.py
 │   │   ├── stability
+│   │   │   ├── __pycache__
+│   │   │   │   ├── calibration_registry.cpython-314.pyc
+│   │   │   │   ├── cohort_shift.cpython-314.pyc
+│   │   │   │   ├── drift_detector.cpython-314.pyc
+│   │   │   │   └── temporal_drift.cpython-314.pyc
 │   │   │   ├── calibration_registry.py
 │   │   │   ├── cohort_shift.py
 │   │   │   ├── drift_detector.py
 │   │   │   └── temporal_drift.py
 │   │   ├── statistics
+│   │   │   ├── __pycache__
+│   │   │   │   └── bayesian_calibration.cpython-314.pyc
 │   │   │   ├── bayesian_calibration.py
 │   │   │   └── bootstrap.py
 │   │   └── tests
+│   │       ├── __pycache__
+│   │       │   ├── test_bayesian_calibration.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_calibration_registry.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_cohort_shift.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_cohort_stress.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_drift_detector.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_quality_aware_aggregation.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_quality_monitor.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_session_quality_monitor.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_session_simulator.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_task_difficulty_model_v0.cpython-314-pytest-8.4.2.pyc
+│   │       │   ├── test_task_drift_monitor.cpython-314-pytest-8.4.2.pyc
+│   │       │   └── test_temporal_drift.cpython-314-pytest-8.4.2.pyc
 │   │       ├── test_bayesian_calibration.py
 │   │       ├── test_calibration_registry.py
 │   │       ├── test_cohort_shift.py
@@ -117,6 +258,9 @@ project
 │   │   │   │   ├── __init__.cpython-314.pyc
 │   │   │   │   ├── confidence_engine.cpython-314.pyc
 │   │   │   │   ├── constraint_resolver.cpython-314.pyc
+│   │   │   │   ├── evidence.cpython-314.pyc
+│   │   │   │   ├── evidence_builder.cpython-314.pyc
+│   │   │   │   ├── evidence_query.cpython-314.pyc
 │   │   │   │   ├── governance_state.cpython-314.pyc
 │   │   │   │   ├── governed_adaptation.cpython-314.pyc
 │   │   │   │   ├── governed_runtime.cpython-314.pyc
@@ -133,6 +277,9 @@ project
 │   │   │   │   └── signal_schema.cpython-314.pyc
 │   │   │   ├── confidence_engine.py
 │   │   │   ├── constraint_resolver.py
+│   │   │   ├── evidence.py
+│   │   │   ├── evidence_builder.py
+│   │   │   ├── evidence_query.py
 │   │   │   ├── governance_state.py
 │   │   │   ├── governed_adaptation.py
 │   │   │   ├── governed_runtime.py
@@ -149,6 +296,7 @@ project
 │   │   │   └── signal_schema.py
 │   │   ├── sessions.py
 │   │   ├── tasks.py
+│   │   ├── tasks.py.bak
 │   │   └── validators.py
 │   ├── static
 │   │   ├── js
@@ -181,6 +329,10 @@ project
 │   │       └── pattern_recognition.html
 │   ├── tests
 │   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   ├── test_session_summary_contract.cpython-314-pytest-8.4.2.pyc
+│   │   │   └── test_summary_schema_enforcement.cpython-314-pytest-8.4.2.pyc
 │   │   ├── test_session_summary_contract.py
 │   │   └── test_summary_schema_enforcement.py
 │   └── utils
@@ -195,7 +347,6 @@ project
 │       │   ├── storage.cpython-314.pyc
 │       │   ├── summary_adapter.cpython-314.pyc
 │       │   ├── summary_validator.cpython-314.pyc
-│       │   ├── trajectory_artifact.cpython-314.pyc
 │       │   └── trajectory_dynamics.cpython-314.pyc
 │       ├── helpers.py
 │       ├── logging.py
@@ -342,5 +493,83 @@ project
 │   └── task_catalog.json
 └── test_data
     └── session_data.json
+scripts
+├── __pycache__
+│   ├── test_arbitration.cpython-314-pytest-8.4.2.pyc
+│   ├── test_governance_envelope.cpython-314-pytest-8.4.2.pyc
+│   ├── test_governance_timeline.cpython-314-pytest-8.4.2.pyc
+│   ├── test_governance_validation.cpython-314-pytest-8.4.2.pyc
+│   ├── test_governed_execution.cpython-314-pytest-8.4.2.pyc
+│   ├── test_governed_runtime.cpython-314-pytest-8.4.2.pyc
+│   ├── test_longitudinal_simulation.cpython-314-pytest-8.4.2.pyc
+│   ├── test_orchestration_constraints.cpython-314-pytest-8.4.2.pyc
+│   ├── test_orchestration_mediation.cpython-314-pytest-8.4.2.pyc
+│   ├── test_participant_summary.cpython-314-pytest-8.4.2.pyc
+│   ├── test_persistence_envelope.cpython-314-pytest-8.4.2.pyc
+│   ├── test_topology_validation.cpython-314-pytest-8.4.2.pyc
+│   ├── test_trajectory_artifact.cpython-314-pytest-8.4.2.pyc
+│   ├── test_trajectory_dynamics.cpython-314-pytest-8.4.2.pyc
+│   └── verify_adr009_compliance.cpython-314.pyc
+├── add_inv002_violation_scenario.py
+├── add_inv007_temporal_scenarios.py
+├── add_inv008_violation_scenario.py
+├── add_inv009_transition_scenarios.py
+├── analyze_trajectory_population.py
+├── create_adr_001.py
+├── create_adr_002.py
+├── create_adr_003.py
+├── create_adr_004.py
+├── create_adr_005.py
+├── create_adr_006.py
+├── create_adr_007.py
+├── create_reporting_module.py
+├── generate_validation_artifacts.py
+├── patch_assertion_runtime_normalization.py
+├── patch_inv001_typed_runtime.py
+├── patch_inv002.py
+├── patch_inv002_typed_runtime.py
+├── patch_inv004_typed_runtime.py
+├── patch_inv007_evaluator.py
+├── patch_inv007_invariant.py
+├── patch_inv008.py
+├── patch_inv008_typed_runtime.py
+├── patch_inv009_registration.py
+├── patch_inv009_transition_legality.py
+├── patch_reporting_into_test_suite.py
+├── patch_reporting_serialization.py
+├── patch_runtime_transition_semantics.py
+├── patch_temporal_runtime_schema.py
+├── patch_temporal_thresholds.py
+├── patch_test_suite_report_serialization.py
+├── pilot_test.sh
+├── recovery_calibration.py
+├── run_participant_summary.py
+├── run_trajectory_artifact.py
+├── run_trajectory_dynamics.py
+├── test_arbitration.py
+├── test_governance_envelope.py
+├── test_governance_timeline.py
+├── test_governance_validation.py
+├── test_governed_execution.py
+├── test_governed_runtime.py
+├── test_longitudinal_simulation.py
+├── test_orchestration_constraints.py
+├── test_orchestration_mediation.py
+├── test_persistence_envelope.py
+├── test_topology_validation.py
+├── verify_adr009_compliance.py
+└── verify_adr009_compliance.py.bak
+tests
+├── __pycache__
+│   ├── conftest.cpython-314-pytest-8.4.2.pyc
+│   ├── test_metrics.cpython-314-pytest-8.4.2.pyc
+│   └── test_tasks_filters.cpython-314-pytest-8.4.2.pyc
+├── conftest.py
+├── fixtures
+│   ├── README.md
+│   └── routing_traces
+│       └── adr009_reference.jsonl
+├── test_metrics.py
+└── test_tasks_filters.py
 
-49 directories, 295 files
+79 directories, 494 files
