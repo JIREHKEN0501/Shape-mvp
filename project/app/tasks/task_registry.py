@@ -2,7 +2,7 @@
 # Defines task sequencing and progression logic
 
 TASK_SEQUENCE = [
-    "pattern_recognition",
+    "pattern_recognition_v1",
     "strategy_under_constraint_v1",
     # add more task IDs here later
     # "memory_01",

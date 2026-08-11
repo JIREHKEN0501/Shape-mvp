@@ -5,5 +5,4 @@
 # source venv/bin/activate
 
 # Bind to all interfaces on port 8000 with 3 workers
-exec gunicorn -w 3 -b 0.0.0.0:8000 "app:create_app()"
-
+exec gunicorn -w 3 -b 0.0.0.0:8000 "app:app"

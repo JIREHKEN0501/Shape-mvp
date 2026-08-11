@@ -1,10 +1,8 @@
 # project/app/utils/session_loader.py
 
 import json
-from pathlib import Path
 
-DATA_LOG_PATH = Path("project/logs/data_log.jsonl")
-
+from project.app.utils.storage import DATA_LOG
 
 def load_session_by_id(session_id: str) -> dict | None:
     """
@@ -14,10 +12,10 @@ def load_session_by_id(session_id: str) -> dict | None:
         dict if found
         None if not found
     """
-    if not DATA_LOG_PATH.exists():
+    if not DATA_LOG:
         return None
 
-    with DATA_LOG_PATH.open("r", encoding="utf-8") as f:
+    with open(DATA_LOG, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:

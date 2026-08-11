@@ -30,6 +30,8 @@ from project.app.utils.session_loader import (
     is_schema_supported,
 )
 from project.app.utils.summary_adapter import build_session_summary
+from project.app.utils.summary_validator import validate_summary_schema
+from project.app.utils.session_summaries import build_cognitive_session_summary
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -236,14 +238,14 @@ def submit_result():
         ),
         "timezone_offset_min": request.headers.get("X-Timezone-Offset")
     }
-
-    saved = save_session_result(session)
  
     # ---- Phase 8C-1: session completion detection ----
-    task_id = saved.get("task_id")
+    task_id = session.get("task_id")
     is_complete = get_next_task(task_id) is None
+    session["session_complete"] = is_complete
 
-    saved["session_complete"] = is_complete
+    # Persist the fully prepared session exactly once
+    saved = save_session_result(session)
 
     # ---- Phase 11A-3: unified session summary adapter ----
     session_summary = build_session_summary(saved)    

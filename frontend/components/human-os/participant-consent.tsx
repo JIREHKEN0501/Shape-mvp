@@ -8,6 +8,34 @@ import { Button } from '@/components/ui/button'
 export function ParticipantConsent() {
   const [hasAgreed, setHasAgreed] = useState(false)
   const [hasBegun, setHasBegun] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function beginExperience() {
+    if (isSubmitting || !hasAgreed) return
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/consent', {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      const result: { ok?: boolean } = await response.json()
+      if (!response.ok || !result.ok) {
+        throw new Error('Consent could not be recorded.')
+      }
+
+      setHasBegun(true)
+      window.location.assign('/task/pattern_recognition_v1')
+    } catch {
+      setError('We could not record your choice. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <section
@@ -40,11 +68,11 @@ export function ParticipantConsent() {
           <Button
             size="lg"
             variant="secondary"
-            disabled={!hasAgreed || hasBegun}
+            disabled={!hasAgreed || hasBegun || isSubmitting}
             className="h-11 px-5"
-            onClick={() => setHasBegun(true)}
+            onClick={beginExperience}
           >
-            {hasBegun ? 'Choice confirmed' : 'Begin the experience'}
+            {hasBegun ? 'Choice confirmed' : isSubmitting ? 'Confirming choice…' : 'Begin the experience'}
             {!hasBegun && <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />}
           </Button>
           {!hasAgreed && (
@@ -55,6 +83,11 @@ export function ParticipantConsent() {
           {hasBegun && (
             <p className="text-sm font-medium text-primary-foreground" role="status">
               You have chosen to begin.
+            </p>
+          )}
+          {error && (
+            <p className="text-sm font-medium text-primary-foreground" role="alert">
+              {error}
             </p>
           )}
         </div>

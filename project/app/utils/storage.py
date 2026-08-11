@@ -6,7 +6,13 @@ from datetime import datetime
 from project.app.utils.helpers import now_iso
 from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(__file__)
+        )
+    )
+)
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 
 DATA_LOG = os.path.join(LOG_DIR, "data_log.jsonl")
