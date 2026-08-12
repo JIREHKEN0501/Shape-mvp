@@ -10,7 +10,7 @@ from functools import wraps
 from project.app.routes.security import bot_tripwire
 from project.app.utils.logging import (
     append_jsonl_secure, audit_record,
-    CONSENT_LOG, DATA_LOG
+    CONSENT_LOG, EXPERIENCE_LOG, DATA_LOG
 )
 from project.app.utils.helpers import now_iso, ip_hash
 from project.app.utils.metrics import (
@@ -152,6 +152,7 @@ def consent():
 
     ip = request.remote_addr or ""
     participant_id = str(uuid.uuid4())
+    experience_id = str(uuid.uuid4())
 
     record = {
         "participant_id": participant_id,
@@ -167,7 +168,17 @@ def consent():
         action="consent_given",
     )
 
-    resp = make_response(jsonify({"ok": True, "participant_id": participant_id}))
+    experience_record = {
+        "experience_id": experience_id,
+        "participant_id": participant_id,
+        "status": "active",
+        "sequence_version": "1.0",
+        "created_ts": now_iso(),
+        "completed_ts": None,
+    }
+
+    append_jsonl_secure(EXPERIENCE_LOG, experience_record)
+    resp = make_response(jsonify({"ok": True, "participant_id": participant_id, "experience_id": experience_id,}))
     resp.set_cookie(
         "participant_id",
         participant_id,
@@ -175,6 +186,15 @@ def consent():
         httponly=True,
         samesite="Lax",
     )
+
+    resp.set_cookie(
+        "experience_id",
+        experience_id,
+        max_age=60 * 60 * 24,
+        httponly=True,
+        samesite="Lax",
+    )
+
     return resp
 
 

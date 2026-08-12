@@ -15,6 +15,7 @@ ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
 LOG_DIR = os.path.join(ROOT_DIR, "logs")
 
 CONSENT_LOG = os.path.join(LOG_DIR, "consent_log.jsonl")
+EXPERIENCE_LOG = os.path.join(LOG_DIR, "experience_log.jsonl")
 DATA_LOG = os.path.join(LOG_DIR, "data_log.jsonl")
 AUDIT_LOG = os.path.join(LOG_DIR, "audit_log.jsonl")
 
