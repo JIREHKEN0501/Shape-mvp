@@ -1,4 +1,11 @@
-from project.app.tasks.task_registry import TASK_SEQUENCE
+from project.app.tasks.task_registry import (
+    TASK_SEQUENCE,
+    get_next_task,
+)
+from project.app.utils.experience_loader import (
+    experience_belongs_to_participant,
+    is_experience_active,
+)
 
 
 def make_experience(
@@ -194,3 +201,57 @@ def test_complete_experience_requires_all_registered_tasks():
     required_task_ids = set(TASK_SEQUENCE)
 
     assert completed_task_ids == required_task_ids
+
+
+# --------------------------------------------------
+# CONTRACT TESTS
+# --------------------------------------------------
+
+def test_active_experience_is_active():
+    experience = make_experience(status="active")
+
+    assert is_experience_active(experience) is True
+
+
+def test_non_active_experience_is_not_active():
+    experience = make_experience(status="completed")
+
+    assert is_experience_active(experience) is False
+
+
+def test_experience_belongs_to_owning_participant():
+    experience = make_experience(
+        participant_id="participant-1"
+    )
+
+    assert experience_belongs_to_participant(
+        experience,
+        "participant-1",
+    ) is True
+
+
+def test_experience_does_not_belong_to_other_participant():
+    experience = make_experience(
+        participant_id="participant-1"
+    )
+
+    assert experience_belongs_to_participant(
+        experience,
+        "participant-2",
+    ) is False
+
+def test_task_session_completion_is_independent_of_experience_completion():
+    first_task = TASK_SEQUENCE[0]
+
+    next_task = get_next_task(first_task)
+
+    assert next_task is not None
+    assert next_task != first_task
+
+
+def test_final_task_marks_experience_boundary():
+    final_task = TASK_SEQUENCE[-1]
+
+    next_task = get_next_task(final_task)
+
+    assert next_task is None

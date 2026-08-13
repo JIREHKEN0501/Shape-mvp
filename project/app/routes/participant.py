@@ -23,11 +23,15 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from project.app.tasks.task_registry import get_next_task
 from project.app.tasks.task_registry import TASK_SEQUENCE
-from project.app.tasks.task_registry import get_next_task
 from project.app.utils.session_loader import load_session_by_id
 from project.app.utils.session_loader import (
     get_schema_version,
     is_schema_supported,
+)
+from project.app.utils.experience_loader import (
+    load_experience_by_id,
+    experience_belongs_to_participant,
+    is_experience_active,
 )
 from project.app.utils.summary_adapter import build_session_summary
 from project.app.utils.summary_validator import validate_summary_schema
@@ -225,7 +229,33 @@ def submit_result():
     if not participant_id:
         return jsonify({"error": "no_participant_cookie"}), 401
 
+    experience_id = request.cookies.get("experience_id")
+    if not experience_id:
+        return jsonify({"error": "no_experience_cookie"}), 401
+
+    experience = load_experience_by_id(experience_id)
+
+    if experience is None:
+        return jsonify({"error": "experience_not_found"}), 404
+
+    if not experience_belongs_to_participant(
+        experience,
+        participant_id,
+    ):
+        audit_record(
+            actor=f"participant:{participant_id}",
+            action="experience_membership_rejected",
+            subject=experience_id,
+            status="rejected",
+            notes="experience_does_not_belong_to_participant",
+        )
+        return jsonify({"error": "experience_not_owned"}), 403
+
+    if not is_experience_active(experience):
+        return jsonify({"error": "experience_not_active"}), 409
+
     data["participant_id"] = participant_id
+    data["experience_id"] = experience_id
     session = data
 
     # ---- Phase 9D-1: session identity (ADD THIS BLOCK) ----
@@ -259,10 +289,17 @@ def submit_result():
         "timezone_offset_min": request.headers.get("X-Timezone-Offset")
     }
  
-    # ---- Phase 8C-1: session completion detection ----
+    # ---- Phase 8C-1: task-session completion ----
     task_id = session.get("task_id")
-    is_complete = get_next_task(task_id) is None
+
+    # A successfully validated submission completes the current
+    # task session. The next task is a separate progression concern.
+    is_complete = True
     session["session_complete"] = is_complete
+
+    # Determine whether this was the final registered task.
+    next_task_id = get_next_task(task_id)
+    experience_complete = next_task_id is None
 
     # Persist the fully prepared session exactly once
     saved = save_session_result(session)
@@ -296,13 +333,19 @@ def submit_result():
         actor=f"participant:{saved.get('participant_id','unknown')}",
         action="submit_result",
         subject=saved.get("task_id"),
-        notes=f"type={t}, complete={is_complete}",
+        notes=(
+            f"type={t}, "
+            f"session_complete={is_complete}, "
+            f"experience_complete={experience_complete}"
+        ),
     )
 
     return jsonify({
         "saved": saved,
         "metrics": metrics,
         "session_complete": is_complete,
+        "experience_complete": experience_complete,
+        "next_task_id": next_task_id,
         "session_summary": session_summary
     }), 201
    
