@@ -4,10 +4,9 @@ import json
 
 from project.app.utils.logging import EXPERIENCE_LOG
 
-
 def load_experience_by_id(experience_id: str) -> dict | None:
     """
-    Load a single participant experience by experience_id.
+    Load the latest participant experience state by experience_id.
 
     Returns:
         dict if found
@@ -15,6 +14,8 @@ def load_experience_by_id(experience_id: str) -> dict | None:
     """
     if not experience_id:
         return None
+
+    latest = None
 
     try:
         with open(EXPERIENCE_LOG, "r", encoding="utf-8") as f:
@@ -29,13 +30,12 @@ def load_experience_by_id(experience_id: str) -> dict | None:
                     continue
 
                 if record.get("experience_id") == experience_id:
-                    return record
+                    latest = record
 
     except FileNotFoundError:
         return None
 
-    return None
-
+    return latest
 
 def is_experience_active(experience: dict) -> bool:
     """

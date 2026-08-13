@@ -33,6 +33,7 @@ from project.app.utils.experience_loader import (
     experience_belongs_to_participant,
     is_experience_active,
 )
+from project.app.utils.experience_lifecycle import complete_experience
 from project.app.utils.summary_adapter import build_session_summary
 from project.app.utils.summary_validator import validate_summary_schema
 from project.app.utils.session_summaries import build_cognitive_session_summary
@@ -303,6 +304,24 @@ def submit_result():
 
     # Persist the fully prepared session exactly once
     saved = save_session_result(session)
+
+    # ---- Experience lifecycle transition ----
+    completed_experience = None
+
+    if experience_complete:
+        completed_experience = complete_experience(
+            experience_id,
+            participant_id,
+        )
+
+        if completed_experience is None:
+            audit_record(
+                actor="system",
+                action="experience_completion_failed",
+                subject=experience_id,
+                status="error",
+                notes="final_task_submitted_but_experience_transition_failed",
+            )
 
     # ---- Phase 11A-3: unified session summary adapter ----
     session_summary = build_session_summary(saved)    

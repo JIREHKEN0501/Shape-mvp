@@ -255,3 +255,103 @@ def test_final_task_marks_experience_boundary():
     next_task = get_next_task(final_task)
 
     assert next_task is None
+
+def test_completed_experience_is_not_active():
+    experience = make_experience(status="completed")
+    assert is_experience_active(experience) is False
+
+
+def test_abandoned_experience_is_not_active():
+    experience = make_experience(status="abandoned")
+    assert is_experience_active(experience) is False
+
+def test_loader_returns_latest_experience_state(tmp_path, monkeypatch):
+    from project.app.utils import experience_loader
+
+    log_path = tmp_path / "experience_log.jsonl"
+
+    records = [
+        {
+            "experience_id": "experience-1",
+            "participant_id": "participant-1",
+            "status": "active",
+            "sequence_version": "1.0",
+            "created_ts": "2026-08-13T12:00:00Z",
+            "completed_ts": None,
+        },
+        {
+            "experience_id": "experience-1",
+            "participant_id": "participant-1",
+            "status": "completed",
+            "sequence_version": "1.0",
+            "created_ts": "2026-08-13T12:00:00Z",
+            "completed_ts": "2026-08-13T12:10:00Z",
+        },
+    ]
+
+    with log_path.open("w", encoding="utf-8") as f:
+        for record in records:
+            import json
+            f.write(json.dumps(record) + "\n")
+
+    monkeypatch.setattr(
+        experience_loader,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+
+    experience = experience_loader.load_experience_by_id("experience-1")
+
+    assert experience is not None
+    assert experience["status"] == "completed"
+    assert experience["completed_ts"] == "2026-08-13T12:10:00Z"
+
+def test_final_task_completion_persists_completed_experience(
+    tmp_path,
+    monkeypatch,
+):
+    from project.app.utils import experience_lifecycle
+    from project.app.utils.experience_loader import load_experience_by_id
+
+    log_path = tmp_path / "experience_log.jsonl"
+
+    active_experience = make_experience(
+        experience_id="experience-final",
+        participant_id="participant-1",
+        status="active",
+    )
+
+    import json
+
+    with log_path.open("w", encoding="utf-8") as f:
+        f.write(json.dumps(active_experience) + "\n")
+
+    monkeypatch.setattr(
+        experience_lifecycle,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+
+    # The loader uses the same log location in production,
+    # so point it at the isolated test log as well.
+    import project.app.utils.experience_loader as loader
+
+    monkeypatch.setattr(
+        loader,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+
+    completed = experience_lifecycle.complete_experience(
+        "experience-final",
+        "participant-1",
+    )
+
+    assert completed is not None
+    assert completed["status"] == "completed"
+
+    resolved = load_experience_by_id("experience-final")
+
+    assert resolved is not None
+    assert resolved["status"] == "completed"
+    assert resolved["completed_ts"] is not None
