@@ -17,8 +17,6 @@ from project.app.utils.metrics import (
     compute_behavioral_metrics,
     compute_cognitive_metrics,
 )
-from project.app.utils.storage import save_session_result
-
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from project.app.tasks.task_registry import get_next_task
@@ -37,6 +35,9 @@ from project.app.utils.experience_lifecycle import complete_experience
 from project.app.utils.summary_adapter import build_session_summary
 from project.app.utils.summary_validator import validate_summary_schema
 from project.app.utils.session_summaries import build_cognitive_session_summary
+from project.app.services.experience_progression_service import (
+    complete_task_progression,
+)
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -182,7 +183,23 @@ def consent():
         "completed_ts": None,
     }
 
-    append_jsonl_secure(EXPERIENCE_LOG, experience_record)
+    append_jsonl_secure(
+        EXPERIENCE_LOG,
+        experience_record,
+    )
+
+    experience_created_event = {
+        "event": "experience_created",
+        "event_version": "1.0",
+        "experience_id": experience_id,
+        "participant_id": participant_id,
+        "sequence_version": "1.0",
+        "ts": experience_record["created_ts"],
+    }
+
+    _append_experience_event(
+        experience_created_event
+    )
     resp = make_response(jsonify({"ok": True, "participant_id": participant_id, "experience_id": experience_id,}))
     resp.set_cookie(
         "participant_id",
@@ -289,26 +306,63 @@ def submit_result():
         ),
         "timezone_offset_min": request.headers.get("X-Timezone-Offset")
     }
- 
-    # ---- Phase 8C-1: task-session completion ----
+
+    # ---- Phase C: append-only task progression ----
+
     task_id = session.get("task_id")
 
-    # A successfully validated submission completes the current
-    # task session. The next task is a separate progression concern.
+    progression_result = complete_task_progression(
+        experience_id=experience_id,
+        participant_id=participant_id,
+        session=session,
+    )
+
+    if not progression_result.get("ok"):
+        error = progression_result.get(
+            "error",
+            "progression_failed",
+        )
+
+        if error == "task_not_expected":
+            audit_record(
+                actor=f"participant:{participant_id}",
+                action="task_progression_rejected",
+                subject=experience_id,
+                status="rejected",
+                notes=(
+                    f"submitted_task={task_id}, "
+                    f"expected_task="
+                    f"{progression_result.get('expected_task')}"
+                ),
+            )
+
+            return jsonify({
+                "error": error,
+                "expected_task": progression_result.get(
+                    "expected_task"
+                ),
+            }), 409
+
+        return jsonify({
+            "error": error,
+        }), 409
+
+    saved = progression_result["saved_session"]
+
     is_complete = True
-    session["session_complete"] = is_complete
+    next_task_id = progression_result.get(
+        "next_task_id"
+    )
 
-    # Determine whether this was the final registered task.
-    next_task_id = get_next_task(task_id)
-    experience_complete = next_task_id is None
+    final_task = progression_result.get(
+        "final_task",
+        False,
+    )
 
-    # Persist the fully prepared session exactly once
-    saved = save_session_result(session)
+    experience_complete = False
 
-    # ---- Experience lifecycle transition ----
-    completed_experience = None
-
-    if experience_complete:
+    # Experience lifecycle remains separate from task progression.
+    if final_task:
         completed_experience = complete_experience(
             experience_id,
             participant_id,
@@ -320,12 +374,17 @@ def submit_result():
                 action="experience_completion_failed",
                 subject=experience_id,
                 status="error",
-                notes="final_task_submitted_but_experience_transition_failed",
+                notes=(
+                    "final_task_submitted_but_"
+                    "experience_transition_failed"
+                ),
             )
+        else:
+            experience_complete = True
 
     # ---- Phase 11A-3: unified session summary adapter ----
-    session_summary = build_session_summary(saved)    
-    
+    session_summary = build_session_summary(saved)
+
     # ---- Phase 12A-4: fail-closed summary enforcement ----
     if session_summary is not None:
         if not validate_summary_schema(session_summary):
@@ -367,7 +426,7 @@ def submit_result():
         "next_task_id": next_task_id,
         "session_summary": session_summary
     }), 201
-   
+
 
 # ================================
 #  PARTICIPANT SESSION RETRIEVAL

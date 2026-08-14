@@ -1,0 +1,15 @@
+venv/
+.git/
+.gitignore
+.pytest_cache/
+__pycache__/
+*.pyc
+*.bak
+logs/
+backups/
+legacy_backups/
+session_data.json
+cookies.txt
+admin_cookies.txt
+*.tgz
+*.gpg
