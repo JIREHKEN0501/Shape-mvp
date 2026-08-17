@@ -143,6 +143,20 @@ def mediate_difficulty_adjustment(
             "progression escalation"
         )
 
+    # =====================================
+    # Final difficulty range invariant
+    # =====================================
+    #
+    # The governance mediation layer is the
+    # final authority over permitted difficulty.
+    # No upstream proposal may escape the
+    # canonical task difficulty range.
+
+    permitted_difficulty = max(
+        1,
+        min(permitted_difficulty, 3)
+    )
+
     return GovernedAdaptationResult(
         permitted_difficulty=(
             permitted_difficulty
