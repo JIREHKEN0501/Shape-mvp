@@ -462,3 +462,322 @@ def test_task_completed_requires_existing_session(
 
     assert result["status"] == "invalid"
     assert result["error"] == "invalid_progression_history"
+
+def test_empty_event_history_returns_not_found(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+
+    events_file.write_text(
+        "",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    result = load_experience_progression(
+        "experience-with-no-history",
+    )
+
+    assert result is None
+
+def test_completion_event_before_all_tasks_is_invalid(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+
+    events_file.write_text(
+        "\n".join(
+            [
+                '{"event":"experience_created",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"ts":"2026-08-14T12:00:00Z"}',
+
+                '{"event":"task_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"task_id":"pattern_recognition_v1",'
+                '"session_id":"session-1",'
+                '"ts":"2026-08-14T12:05:00Z"}',
+
+                '{"event":"experience_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"ts":"2026-08-14T12:06:00Z"}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_session_by_id",
+        lambda session_id: {
+            "session_id": session_id,
+            "participant_id": "participant-1",
+            "experience_id": "experience-1",
+            "task_id": "pattern_recognition_v1",
+            "session_complete": True,
+        },
+    )
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    result = load_experience_progression(
+        "experience-1",
+    )
+
+    assert result["status"] == "invalid"
+    assert result["error"] == "invalid_progression_history"
+
+def test_events_after_completion_make_history_invalid(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+
+    events_file.write_text(
+        "\n".join(
+            [
+                '{"event":"experience_created",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"ts":"2026-08-14T12:00:00Z"}',
+
+                '{"event":"task_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"task_id":"pattern_recognition_v1",'
+                '"session_id":"session-1",'
+                '"ts":"2026-08-14T12:05:00Z"}',
+
+                '{"event":"task_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"task_id":"strategy_under_constraint_v1",'
+                '"session_id":"session-2",'
+                '"ts":"2026-08-14T12:08:00Z"}',
+
+                '{"event":"experience_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"ts":"2026-08-14T12:10:00Z"}',
+
+                '{"event":"task_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"task_id":"unexpected_task",'
+                '"session_id":"session-3",'
+                '"ts":"2026-08-14T12:11:00Z"}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_session_by_id",
+        lambda session_id: {
+            "session_id": session_id,
+            "participant_id": "participant-1",
+            "experience_id": "experience-1",
+            "task_id": (
+                "pattern_recognition_v1"
+                if session_id == "session-1"
+                else "strategy_under_constraint_v1"
+            ),
+            "session_complete": True,
+        },
+    )
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    result = load_experience_progression(
+        "experience-1",
+    )
+
+    assert result["status"] == "invalid"
+    assert result["error"] == "invalid_progression_history"
+
+def test_duplicate_completion_events_make_history_invalid(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+
+    events_file.write_text(
+        "\n".join(
+            [
+                '{"event":"experience_created",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"ts":"2026-08-14T12:00:00Z"}',
+
+                '{"event":"task_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"task_id":"pattern_recognition_v1",'
+                '"session_id":"session-1",'
+                '"ts":"2026-08-14T12:05:00Z"}',
+
+                '{"event":"task_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"task_id":"strategy_under_constraint_v1",'
+                '"session_id":"session-2",'
+                '"ts":"2026-08-14T12:08:00Z"}',
+
+                '{"event":"experience_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"ts":"2026-08-14T12:10:00Z"}',
+
+                '{"event":"experience_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"ts":"2026-08-14T12:11:00Z"}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_session_by_id",
+        lambda session_id: {
+            "session_id": session_id,
+            "participant_id": "participant-1",
+            "experience_id": "experience-1",
+            "task_id": (
+                "pattern_recognition_v1"
+                if session_id == "session-1"
+                else "strategy_under_constraint_v1"
+            ),
+            "session_complete": True,
+        },
+    )
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    result = load_experience_progression(
+        "experience-1",
+    )
+
+    assert result["status"] == "invalid"
+    assert result["error"] == "invalid_progression_history"
+
+def test_progression_reconstruction_is_deterministic(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+
+    events_file.write_text(
+        "\n".join(
+            [
+                '{"event":"experience_created",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"ts":"2026-08-14T12:00:00Z"}',
+
+                '{"event":"task_completed",'
+                '"event_version":"1.0",'
+                '"experience_id":"experience-1",'
+                '"participant_id":"participant-1",'
+                '"sequence_version":"1.0",'
+                '"task_id":"pattern_recognition_v1",'
+                '"session_id":"session-1",'
+                '"ts":"2026-08-14T12:05:00Z"}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_session_by_id",
+        lambda session_id: {
+            "session_id": session_id,
+            "participant_id": "participant-1",
+            "experience_id": "experience-1",
+            "task_id": "pattern_recognition_v1",
+        },
+    )
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    first = load_experience_progression(
+        "experience-1",
+    )
+
+    second = load_experience_progression(
+        "experience-1",
+    )
+
+    assert first == second

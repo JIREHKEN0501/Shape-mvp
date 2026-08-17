@@ -72,10 +72,33 @@ def load_experience_progression(
 
     completed_tasks = []
     progression_error = None
+    experience_completed = False
 
     for event in events:
-        if event.get("event") != "task_completed":
+        event_type = event.get("event")
+
+        if event_type == "experience_completed":
+            # Completion is only valid after every required task
+            # has been completed in the required order.
+            if completed_tasks != TASK_SEQUENCE:
+                progression_error = "invalid_progression_history"
+                break
+
+            # A second completion event is invalid.
+            if experience_completed:
+                progression_error = "invalid_progression_history"
+                break
+
+            experience_completed = True
             continue
+
+        if event_type != "task_completed":
+            continue
+
+        # No task events are allowed after experience completion.
+        if experience_completed:
+            progression_error = "invalid_progression_history"
+            break
 
         task_id = event.get("task_id")
 
@@ -112,10 +135,6 @@ def load_experience_progression(
             break
 
         completed_tasks.append(task_id)
-    experience_completed = any(
-        event.get("event") == "experience_completed"
-        for event in events
-    )
 
     if progression_error is not None:
         return {
