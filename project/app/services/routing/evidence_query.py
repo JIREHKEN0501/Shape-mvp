@@ -50,3 +50,31 @@ class EvidenceQuery:
             self._evidence.temporal.observations,
             kind,
         )
+
+    def get_strategy(
+        self,
+        kind: str,
+    ) -> EvidenceObservation | None:
+        """
+        Retrieve a strategy evidence observation.
+        """
+
+        return self._find(
+            self._evidence.strategy.observations,
+            kind,
+        )
+
+    def get_strategy_all(
+        self,
+        kind: str,
+    ) -> tuple[EvidenceObservation, ...]:
+        """
+        Retrieve all strategy evidence observations matching the
+        requested kind.
+        """
+
+        return tuple(
+            observation
+            for observation in self._evidence.strategy.observations
+            if observation.kind == kind
+        )

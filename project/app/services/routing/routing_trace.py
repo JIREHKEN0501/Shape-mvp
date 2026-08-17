@@ -28,7 +28,8 @@ def generate_routing_trace(
             "value": signal.value,
             "confidence": signal.confidence,
             "priority": signal.priority,
-            "source": signal.source
+            "source": signal.source,
+            "metadata": signal.metadata or {},
         })
 
     # -----------------------------------
@@ -64,6 +65,19 @@ def generate_routing_trace(
         "conflict_detected": arbitration_result.get(
             "conflict_detected",
             False
+        ),
+
+        "strategy_policy": arbitration_result.get(
+            "strategy_policy",
+            {
+                "policy_version": None,
+                "strategy_observations": [],
+                "routing_authorized": False,
+                "authorized_directives": [],
+                "reason": (
+                    "No strategy policy evaluation was provided."
+                ),
+            }
         ),
 
         "reasoning": arbitration_result.get(

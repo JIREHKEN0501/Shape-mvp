@@ -23,6 +23,8 @@ def extract_routing_signals(
     temporal = summary.get("temporal_behavior", {})
     prediction = summary.get("behavior_prediction", {})
     patterns = summary.get("patterns", [])
+    strategy = summary.get("strategy", {})
+    strategy_decisions = strategy.get("decisions", [])
 
     # ===================================
     # TEMPORAL SIGNALS
@@ -189,6 +191,43 @@ def extract_routing_signals(
                     ],
                     "independent_observations": []
                 }
+            )
+        )
+
+    # ===================================
+    # STRATEGY SIGNALS
+    # ===================================
+
+    for decision in strategy_decisions:
+
+        if not isinstance(decision, dict):
+            continue
+
+        decision_code = decision.get("decision_code")
+
+        if not decision_code:
+            continue
+
+        signals.append(
+            make_signal(
+                signal_type="strategy_decision",
+                value=decision_code,
+                confidence=1.0,
+                priority=1,
+                source="strategy_summary",
+                metadata={
+                    "evidence_class": "observation",
+                    "dependencies": [],
+                    "independent_observations": [
+                        "strategy_decision"
+                    ],
+                    "question_id": decision.get(
+                        "question_id"
+                    ),
+                    "selected_option": decision.get(
+                        "selected_option"
+                    ),
+                },
             )
         )
 

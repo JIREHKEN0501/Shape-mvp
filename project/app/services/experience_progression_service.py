@@ -11,6 +11,7 @@ from project.app.utils.experience_progression import (
 )
 from project.app.utils.logging import LOG_DIR
 from project.app.utils.storage import save_session_result
+from project.app.services.tasks import get_task
 
 EXPERIENCE_EVENTS_LOG = str(
     Path(LOG_DIR) / "experience_events.jsonl"
@@ -77,6 +78,95 @@ def _append_experience_event(event: dict) -> None:
             + "\n"
         )
 
+def _validate_task_execution(session: dict) -> tuple[bool, str | None]:
+    """
+    Validate that a claimed-complete session contains the
+    minimum evidence required to represent a completed task.
+
+    This is deliberately task-aware but does not generate
+    summaries or behavioral interpretations.
+    """
+    task_id = session.get("task_id")
+
+    if task_id == "pattern_recognition_v1":
+        modules = session.get("modules")
+
+        if not isinstance(modules, list) or not modules:
+            return False, "task_evidence_missing"
+
+        questions = []
+
+        for module in modules:
+            if not isinstance(module, dict):
+                return False, "task_evidence_invalid"
+
+            module_questions = module.get("questions")
+
+            if not isinstance(module_questions, list):
+                return False, "task_evidence_invalid"
+
+            questions.extend(module_questions)
+
+        if not questions:
+            return False, "task_evidence_missing"
+
+        for question in questions:
+            if not isinstance(question, dict):
+                return False, "task_evidence_invalid"
+
+            if question.get("user_answer") is None:
+                return False, "task_incomplete"
+
+            if not isinstance(
+                question.get("time_taken_seconds"),
+                (int, float),
+            ):
+                return False, "task_evidence_invalid"
+
+        return True, None
+
+    if task_id == "strategy_under_constraint_v1":
+        modules = session.get("modules")
+
+        if not isinstance(modules, list) or not modules:
+            return False, "task_evidence_missing"
+
+        questions = []
+
+        for module in modules:
+            if not isinstance(module, dict):
+                return False, "task_evidence_invalid"
+
+            module_questions = module.get("questions")
+
+            if not isinstance(module_questions, list):
+                return False, "task_evidence_invalid"
+
+            questions.extend(module_questions)
+
+        if not questions:
+            return False, "task_evidence_missing"
+
+        for question in questions:
+            if not isinstance(question, dict):
+                return False, "task_evidence_invalid"
+
+            if question.get("user_answer") is None:
+                return False, "task_incomplete"
+
+        return True, None
+
+    task = get_task(task_id)
+
+    if task is None:
+        return False, "unknown_task_id"
+
+    return True, None
+
+    if task is None:
+        return False, "unknown_task_id"
+
+    return True, None
 
 def complete_task_progression(
     experience_id: str,
@@ -131,6 +221,31 @@ def complete_task_progression(
             experience_id,
             task_id,
         )
+
+        if not progression["valid"]:
+            return {
+                "ok": False,
+                "error": progression["error"],
+                "expected_task": progression.get(
+                    "expected_task"
+                ),
+            }
+
+        if session.get("session_complete") is not True:
+            return {
+                "ok": False,
+                "error": "session_incomplete",
+            }
+
+        execution_valid, execution_error = _validate_task_execution(
+            session
+        )
+
+        if not execution_valid:
+            return {
+                "ok": False,
+                "error": execution_error,
+            }
 
         if not progression["valid"]:
             return {

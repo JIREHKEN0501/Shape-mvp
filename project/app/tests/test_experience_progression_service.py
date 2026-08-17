@@ -66,6 +66,25 @@ def test_complete_task_progression_persists_session_and_event(
         "experience_id": "experience-1",
         "task_id": "pattern_recognition_v1",
         "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "correct": "I",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                    {
+                        "question_id": "pr_q2",
+                        "correct": "30",
+                        "user_answer": "30",
+                        "time_taken_seconds": 5,
+                    },
+                ],
+            }
+        ],
     }
 
     result = complete_task_progression(
@@ -147,6 +166,25 @@ def test_task_event_is_not_written_when_session_persistence_fails(
         "experience_id": "experience-1",
         "task_id": "pattern_recognition_v1",
         "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "correct": "I",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                    {
+                        "question_id": "pr_q2",
+                        "correct": "30",
+                        "user_answer": "30",
+                        "time_taken_seconds": 5,
+                    },
+                ],
+            }
+        ],
     }
 
     result = complete_task_progression(
@@ -211,6 +249,25 @@ def test_progression_transition_uses_experience_lock(
         "experience_id": "experience-1",
         "task_id": "pattern_recognition_v1",
         "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "correct": "I",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                    {
+                        "question_id": "pr_q2",
+                        "correct": "30",
+                        "user_answer": "30",
+                        "time_taken_seconds": 5,
+                    },
+                ],
+            }
+        ],
     }
 
     result = complete_task_progression(

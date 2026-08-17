@@ -87,6 +87,19 @@ class PatternEvidence:
 
 
 @dataclass(frozen=True)
+class StrategyEvidence:
+    """
+    Evidence derived from governed task-level strategy decisions.
+
+    These observations preserve task-defined decision codes as
+    session-level evidence. They do not represent permanent traits
+    or psychological interpretations.
+    """
+
+    observations: tuple[EvidenceObservation, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class GovernanceEvidence:
     """
     Evidence derived from governance and orchestration constraints.
@@ -107,4 +120,5 @@ class EvidenceContext:
     temporal: TemporalEvidence = field(default_factory=TemporalEvidence)
     prediction: PredictionEvidence = field(default_factory=PredictionEvidence)
     pattern: PatternEvidence = field(default_factory=PatternEvidence)
+    strategy: StrategyEvidence = field(default_factory=StrategyEvidence)
     governance: GovernanceEvidence = field(default_factory=GovernanceEvidence)

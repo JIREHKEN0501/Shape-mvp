@@ -28,5 +28,17 @@
         }
       ]
     }
-  ]
+  ],
+  "decision_code_mapping": {
+    "suc_q1": {
+      "Secure immediate stability": "stability_first",
+      "Invest in long-term payoff": "long_term_payoff",
+      "Gather more information before acting": "information_first"
+    },
+    "suc_q2": {
+      "Act quickly and adjust later": "act_quickly_adjust",
+      "Wait until uncertainty reduces": "wait_for_certainty",
+      "Balance speed with safeguards": "balanced_safeguards"
+    }
+  }
 }

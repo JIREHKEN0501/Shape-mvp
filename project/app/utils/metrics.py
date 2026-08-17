@@ -57,6 +57,7 @@ def compute_cognitive_metrics(session: dict) -> dict:
     modules = session.get("modules", [])
 
     total_questions = 0
+    scored_questions = 0
     correct_answers = 0
     total_time = 0.0
 
@@ -67,23 +68,39 @@ def compute_cognitive_metrics(session: dict) -> dict:
             correct_answer = q.get("correct")
             user_answer = q.get("user_answer")
 
-            # ✅ THIS is the fix
-            if (
-                correct_answer is not None
-                and user_answer is not None
-                and str(user_answer).strip() == str(correct_answer).strip()
-            ):
-                correct_answers += 1
+            # Only questions with a declared correct answer
+            # participate in accuracy scoring.
+            if correct_answer is not None:
+                scored_questions += 1
+
+                if (
+                    user_answer is not None
+                    and str(user_answer).strip()
+                    == str(correct_answer).strip()
+                ):
+                    correct_answers += 1
 
             total_time += q.get("time_taken_seconds", 0) or 0
 
     if total_questions == 0:
         return {"note": "no questions"}
 
+    accuracy_pct = None
+
+    if scored_questions > 0:
+        accuracy_pct = round(
+            (correct_answers / scored_questions) * 100,
+            2,
+        )
+
     return {
-        "accuracy_pct": round((correct_answers / total_questions) * 100, 2),
-        "avg_time_s": round(total_time / total_questions, 2),
+        "accuracy_pct": accuracy_pct,
+        "avg_time_s": round(
+            total_time / total_questions,
+            2,
+        ),
         "question_count": total_questions,
+        "scored_question_count": scored_questions,
     }
 
 def aggregate_metrics(records=None):

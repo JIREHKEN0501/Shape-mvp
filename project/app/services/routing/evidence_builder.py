@@ -16,6 +16,7 @@ from .evidence import (
     GovernanceEvidence,
     PatternEvidence,
     PredictionEvidence,
+    StrategyEvidence,
     TemporalEvidence,
 )
 from .signal_schema import RoutingSignal
@@ -40,6 +41,8 @@ class EvidenceBuilder:
         "risk_under_time_pressure": "prediction",
 
         "behavior_pattern": "pattern",
+
+        "strategy_decision": "strategy",
     }
 
     def build(
@@ -50,6 +53,7 @@ class EvidenceBuilder:
         temporal = []
         prediction = []
         pattern = []
+        strategy = []
         governance = []
 
         for signal in signals:
@@ -85,6 +89,9 @@ class EvidenceBuilder:
             elif domain == "pattern":
                 pattern.append(observation)
 
+            elif domain == "strategy":
+                strategy.append(observation)
+
             elif domain == "governance":
                 governance.append(observation)
 
@@ -103,6 +110,9 @@ class EvidenceBuilder:
             ),
             pattern=PatternEvidence(
                 observations=tuple(pattern)
+            ),
+            strategy=StrategyEvidence(
+                observations=tuple(strategy)
             ),
             governance=GovernanceEvidence(
                 observations=tuple(governance)

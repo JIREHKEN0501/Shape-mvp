@@ -4,6 +4,7 @@ from .signal_schema import RoutingSignal
 
 from .evidence_builder import EvidenceBuilder
 from .evidence_query import EvidenceQuery
+from .strategy_policy import evaluate_strategy_policy
 
 
 class SignalArbitrator:
@@ -78,6 +79,19 @@ class SignalArbitrator:
         )
 
         # ===================================
+        # STRATEGY POLICY EVALUATION
+        # ===================================
+
+        strategy_policy = evaluate_strategy_policy(
+            classified_signals
+        )
+
+        # Strategy evidence is evaluated for transparency,
+        # but does not acquire routing authority here.
+        # Any future strategy-derived directive must be
+        # explicitly authorized by strategy policy.
+
+        # ===================================
         # FATIGUE-BASED STABILIZATION
         # ===================================
 
@@ -135,5 +149,7 @@ class SignalArbitrator:
             decisions["reasons"].append(
                 "Competing escalation and reduction signals detected"
             )
+
+        decisions["strategy_policy"] = strategy_policy
 
         return decisions

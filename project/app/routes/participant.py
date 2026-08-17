@@ -37,6 +37,7 @@ from project.app.utils.summary_validator import validate_summary_schema
 from project.app.utils.session_summaries import build_cognitive_session_summary
 from project.app.services.experience_progression_service import (
     complete_task_progression,
+    _append_experience_event,
 )
 
 participant_bp = Blueprint("participant", __name__)
