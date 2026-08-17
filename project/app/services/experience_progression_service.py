@@ -200,6 +200,35 @@ def complete_task_progression(
                 ),
             }
 
+        final_task = state.get("expected_task") is None
+
+        if final_task:
+            completion_event = {
+                "event": "experience_completed",
+                "event_version": "1.0",
+                "experience_id": experience_id,
+                "participant_id": participant_id,
+                "sequence_version": state.get(
+                    "sequence_version",
+                    "1.0",
+                ),
+                "ts": _now_iso(),
+            }
+
+            try:
+                _append_experience_event(
+                    completion_event
+                )
+            except Exception:
+                return {
+                    "ok": False,
+                    "error": "completion_event_persistence_failed",
+                    "session_id": saved_session.get(
+                        "session_id",
+                        session_id,
+                    ),
+                }
+
         return {
             "ok": True,
             "session_id": saved_session.get(
@@ -211,5 +240,5 @@ def complete_task_progression(
             "experience_id": experience_id,
             "event": event,
             "next_task_id": state.get("expected_task"),
-            "final_task": state.get("expected_task") is None,
+            "final_task": final_task,
         }
