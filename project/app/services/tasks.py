@@ -1097,7 +1097,8 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
 
             oscillation_state=oscillation_state,
 
-            history_depth=len(orchestration_history)
+            history_depth=len(orchestration_history),
+            resolved_constraints=resolved_constraints
         )
     )
 

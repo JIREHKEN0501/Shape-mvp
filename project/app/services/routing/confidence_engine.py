@@ -10,7 +10,9 @@ def build_orchestration_confidence(
     orchestration_health: Dict[str, Any],
     governance_state: Dict[str, Any],
     oscillation_state: Dict[str, Any],
-    history_depth: int
+    history_depth: int,
+
+    resolved_constraints: Dict[str, Any] | None = None
 ) -> Dict[str, Any]:
     """
     Evaluate orchestration evidential reliability.
@@ -31,6 +33,13 @@ def build_orchestration_confidence(
 
     governance_penalty = 0.0
     instability_penalty = 0.0
+
+    if resolved_constraints is None:
+        resolved_constraints = {}
+
+    confidence_cap = resolved_constraints.get(
+        "confidence_cap"
+    )
 
     # =====================================
     # Signal density contribution
@@ -240,7 +249,31 @@ def build_orchestration_confidence(
         confidence_score = 0.05
 
 
+
+
     # =====================================
+    # Governance confidence cap
+    # =====================================
+
+    confidence_cap_active = (
+        confidence_cap is not None
+    )
+
+    if confidence_cap_active:
+        confidence_score = min(
+            confidence_score,
+            float(confidence_cap)
+        )
+
+    # Recompute confidence band after all
+    # final confidence ceilings are applied.
+    if confidence_score < 0.3:
+        confidence_band = "low"
+    elif confidence_score < 0.7:
+        confidence_band = "moderate"
+    else:
+        confidence_band = "high"
+# =====================================
     # Final confidence payload
     # =====================================
 
@@ -252,6 +285,11 @@ def build_orchestration_confidence(
         ),
 
         "band": confidence_band,
+
+        "governance": {
+            "confidence_cap": confidence_cap,
+            "confidence_cap_active": confidence_cap_active,
+        },
 
         "components": {
 
