@@ -73,14 +73,16 @@ def build_selection_trace(
     if resolved_constraints.get(
         "freeze_category_switching"
     ):
-
         governance_influence.append(
             "Category switching restricted by stabilization governance"
         )
 
-    # =====================================
-    # Final orchestration reasoning synthesis
-    # =====================================
+    if governance_state.get(
+        "reevaluation_required"
+    ):
+        governance_influence.append(
+            "Runtime reevaluation required by governance"
+        )
 
     reasoning_parts = []
 
