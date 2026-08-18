@@ -293,3 +293,83 @@ def test_zero_shift_governance_freezes_runtime_task(
     assert selected_task["difficulty"] == 2
 
     assert governed["permitted_difficulty"] == 2
+
+def test_runtime_persists_complete_governance_audit_trace(monkeypatch):
+    """
+    Prove that the final persisted routing trace contains the complete
+    governance audit structure produced after governance mediation.
+    """
+    _patch_runtime(monkeypatch, max_shift=1)
+
+    persisted = []
+
+    def capture_persisted_trace(
+        participant_id,
+        trace,
+        health=None,
+    ):
+        persisted.append({
+            "participant_id": participant_id,
+            "trace": trace,
+            "health": health,
+        })
+
+    monkeypatch.setattr(
+        tasks,
+        "persist_routing_trace",
+        capture_persisted_trace,
+    )
+
+    result = tasks.get_next_task_for_participant(
+        "runtime-governance-audit"
+    )
+
+    assert isinstance(result, dict)
+    assert result.get("task_id") is not None
+
+    # Exactly one final audit trace should be persisted.
+    assert len(persisted) == 1
+
+    persisted_trace = persisted[0]["trace"]
+
+    assert "governance" in persisted_trace
+
+    governance = persisted_trace["governance"]
+
+    assert "state" in governance
+    assert "resolved_constraints" in governance
+    assert "selection_trace" in governance
+    assert "confidence" in governance
+    assert "governed_adaptation" in governance
+
+    # The persisted governance state must match the runtime result.
+    runtime_governance = (
+        result["meta"]["orchestration"]
+    )
+
+    assert (
+        governance["state"]
+        == runtime_governance["governance_state"]
+    )
+
+    assert (
+        governance["resolved_constraints"]
+        == runtime_governance["resolved_constraints"]
+    )
+
+    assert (
+        governance["selection_trace"]
+        == runtime_governance["selection_trace"]
+    )
+
+    assert (
+        governance["confidence"]
+        == runtime_governance["confidence"]
+    )
+
+    # The persisted adaptation must represent the final
+    # governance-mediated difficulty decision.
+    assert (
+        governance["governed_adaptation"]
+        == runtime_governance["governed_adaptation"]
+    )

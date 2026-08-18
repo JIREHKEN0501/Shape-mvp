@@ -623,12 +623,6 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         )
     )
 
-    persist_routing_trace(
-        participant_id,
-        routing_trace,
-        orchestration_health
-    )
-
     strategy_name = behavior_strategy["name"]
     strategy_reason = behavior_strategy["reason"]
 
@@ -1118,6 +1112,37 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
             history_depth=len(orchestration_history),
             resolved_constraints=resolved_constraints
         )
+    )
+
+    # =====================================
+    # Finalize governance audit trace
+    # =====================================
+
+    routing_trace["governance"] = {
+        "state": governance_state,
+        "resolved_constraints": resolved_constraints,
+        "selection_trace": selection_trace,
+        "confidence": orchestration_confidence,
+        "governed_adaptation": {
+            "permitted_difficulty": (
+                governed_adaptation.permitted_difficulty
+            ),
+            "escalation_constrained": (
+                governed_adaptation.escalation_constrained
+            ),
+            "recovery_constrained": (
+                governed_adaptation.recovery_constrained
+            ),
+            "governance_reason": (
+                governed_adaptation.governance_reason
+            ),
+        },
+    }
+
+    persist_routing_trace(
+        participant_id,
+        routing_trace,
+        orchestration_health
     )
 
     # 🚨 HARD GUARD — never send broken task to frontend
