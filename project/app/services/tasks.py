@@ -478,7 +478,7 @@ def _pick_task_for(category: str,
     ]
     if candidates:
         return random.choice(candidates)
-    
+
     return None
 
 def choose_behavior_strategy(summary: Dict[str, Any]) -> Dict[str, str]:
@@ -516,7 +516,7 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     a small 'meta' block with how it was chosen.
     """
     # 1) Load participant history from logs.
-    
+
     events = _load_participant_events(participant_id)
     # Extract previously seen task IDs
     seen_ids = {
@@ -525,7 +525,7 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         if e.get("event_type") == "task_attempt" and e.get("task_id")
     }
     selection_summary = _summarise_history(events)
-    
+
     participant_summary = generate_participant_summary(
         participant_id
     )
@@ -859,6 +859,53 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         chosen_difficulty - base_difficulty
     )
 
+    # =====================================
+    # Governance candidate eligibility
+    # =====================================
+    #
+    # Governance mediation is authoritative
+    # over progression direction.
+    #
+    # Scoring may rank eligible candidates,
+    # but it must not reintroduce a difficulty
+    # escalation or recovery that governance
+    # has explicitly constrained.
+
+    def _is_governance_eligible(task: Dict[str, Any]) -> bool:
+        task_difficulty = int(
+            task.get("difficulty", 1)
+        )
+
+        # Governance mediation constrains escalation.
+        if (
+            governed_adaptation.escalation_constrained
+            and task_difficulty > chosen_difficulty
+        ):
+            return False
+
+        # Governance mediation constrains recovery.
+        if (
+            governed_adaptation.recovery_constrained
+            and task_difficulty < chosen_difficulty
+        ):
+            return False
+
+        # A zero-shift governance constraint freezes
+        # the candidate difficulty at the base level.
+        if max_shift == 0:
+            return task_difficulty == base_difficulty
+
+        # A one-level governance constraint permits
+        # candidates within one difficulty level of the
+        # base difficulty. Governance mediation has already
+        # determined the final permitted progression.
+        if max_shift == 1:
+            return abs(
+                task_difficulty - base_difficulty
+            ) <= 1
+
+        return True
+
     # =========================
     # 🧠 SESSION TASK POOL
     # =========================
@@ -872,8 +919,12 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
 
     # Filter out already seen tasks
     remaining_tasks = [
-        t for t in all_tasks
-        if t.get("task_id") not in seen_ids
+        t
+        for t in all_tasks
+        if (
+            t.get("task_id") not in seen_ids
+            and _is_governance_eligible(t)
+        )
     ]
 
     # End cleanly if none left
@@ -926,7 +977,7 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
             reasons.append(
                 f"Weak category reinforcement (+{weakness_bonus})"
             )
- 
+
         # -----------------------------
         # Match chosen difficulty
         # -----------------------------
@@ -961,7 +1012,7 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
                 reasons.append(
                     "Confidence stabilization bonus (+1)"
                 )
-              
+
         return {
 
             "task": task,
