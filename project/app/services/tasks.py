@@ -725,23 +725,34 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     # 🧠 Governed orchestration overrides
     # =====================================
 
-    if resolved_routing.get("stabilize"):
-        chosen_difficulty = min(
-            max(chosen_difficulty, 1),
-            2
-        )
+    # Governance may suppress routing overrides entirely.
+    # When suppression is active, the resolved routing result
+    # must not mutate the difficulty selected by the upstream
+    # orchestration layers.
+    suppress_overrides = resolved_constraints.get(
+        "suppress_overrides",
+        False
+    )
 
-    if resolved_routing.get("reduce_difficulty"):
-        chosen_difficulty = max(
-            chosen_difficulty - 1,
-            1
-        )
+    if not suppress_overrides:
 
-    if resolved_routing.get("increase_difficulty"):
-        chosen_difficulty = min(
-            chosen_difficulty + 1,
-            3
-        )
+        if resolved_routing.get("stabilize"):
+            chosen_difficulty = min(
+                max(chosen_difficulty, 1),
+                2
+            )
+
+        if resolved_routing.get("reduce_difficulty"):
+            chosen_difficulty = max(
+                chosen_difficulty - 1,
+                1
+            )
+
+        if resolved_routing.get("increase_difficulty"):
+            chosen_difficulty = min(
+                chosen_difficulty + 1,
+                3
+            )
 
     difficulty_adjustment = (
         chosen_difficulty - base_difficulty
