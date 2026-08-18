@@ -900,9 +900,7 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
         # base difficulty. Governance mediation has already
         # determined the final permitted progression.
         if max_shift == 1:
-            return abs(
-                task_difficulty - base_difficulty
-            ) <= 1
+            return task_difficulty <= chosen_difficulty
 
         return True
 
