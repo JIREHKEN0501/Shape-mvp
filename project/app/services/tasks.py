@@ -915,13 +915,20 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
             if t.get("instruction") and t.get("options"):
                 all_tasks.append(t)
 
-    # Filter out already seen tasks
+    # Filter out already seen tasks and apply governance
+    # category constraints before adaptive scoring.
     remaining_tasks = [
         t
         for t in all_tasks
         if (
             t.get("task_id") not in seen_ids
             and _is_governance_eligible(t)
+            and (
+                not resolved_constraints.get(
+                    "freeze_category_switching"
+                )
+                or t.get("category") == chosen_category
+            )
         )
     ]
 
