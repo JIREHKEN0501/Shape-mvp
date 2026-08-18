@@ -1,5 +1,11 @@
 from project.app.services import tasks
+from project.app.services.routing.governance_state import (
+    build_governance_state as real_build_governance_state,
+)
 
+from project.app.services.routing.constraint_resolver import (
+    resolve_governance_constraints as real_resolve_governance_constraints,
+)
 
 def _patch_runtime(monkeypatch, max_shift):
     monkeypatch.setattr(
@@ -372,4 +378,97 @@ def test_runtime_persists_complete_governance_audit_trace(monkeypatch):
     assert (
         governance["governed_adaptation"]
         == runtime_governance["governed_adaptation"]
+    )
+
+def test_runtime_enforces_combined_suppression_governance(
+    monkeypatch,
+):
+    """
+    Prove that the highest runtime governance state produces
+    and enforces all applicable constraints together.
+    """
+
+    _patch_runtime(monkeypatch, max_shift=0)
+
+    # Use the real governance-state builder so the test verifies
+    # the complete threshold-to-runtime interaction.
+    monkeypatch.setattr(
+        tasks,
+        "build_governance_state",
+        real_build_governance_state,
+    )
+
+    # Use the real constraint resolver so the combined interaction
+    # exercises the complete runtime governance constraint chain.
+    monkeypatch.setattr(
+        tasks,
+        "resolve_governance_constraints",
+        real_resolve_governance_constraints,
+    )
+
+    monkeypatch.setattr(
+        tasks,
+        "detect_orchestration_oscillation",
+        lambda history: {
+            "oscillation_score": 0.8
+        },
+    )
+
+    result = tasks.get_next_task_for_participant(
+        "runtime-governance-suppression"
+    )
+
+    assert isinstance(result, dict)
+    assert result.get("task_id") is not None
+
+    orchestration = result["meta"]["orchestration"]
+    governance_state = orchestration["governance_state"]
+    constraints = orchestration["resolved_constraints"]
+    difficulty = result["meta"]["difficulty"]
+    governed = orchestration["governed_adaptation"]
+
+    # -------------------------------------
+    # Combined governance state
+    # -------------------------------------
+
+    assert governance_state["active_modes"] == [
+        "low_authority",
+        "stabilization",
+        "suppression",
+    ]
+
+    assert governance_state["authority_level"] == 0.2
+    assert governance_state["recovery_status"] == "suppressed"
+    assert governance_state["review_flagged"] is True
+
+    # -------------------------------------
+    # Combined resolved constraints
+    # -------------------------------------
+
+    assert constraints["max_difficulty_shift"] == 0
+    assert constraints["confidence_cap"] == 0.7
+    assert constraints["freeze_category_switching"] is True
+    assert constraints["suppress_overrides"] is True
+
+    # -------------------------------------
+    # Runtime enforcement
+    # -------------------------------------
+
+    assert difficulty["base"] == 2
+    assert difficulty["chosen"] == 2
+    assert difficulty["adjustment"] == 0
+
+    assert governed["permitted_difficulty"] == 2
+
+    # Suppression must prevent routing overrides from
+    # changing the upstream difficulty decision.
+    assert difficulty["chosen"] == difficulty["base"]
+
+    # Confidence must remain within the governance cap.
+    assert orchestration["confidence"]["score"] <= 0.7
+
+    # Category switching must remain frozen.
+    assert (
+        orchestration["selection_trace"]["selected_category"]
+        == orchestration["selection_trace"]["target_category"]
     )
