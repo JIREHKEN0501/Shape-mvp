@@ -104,9 +104,7 @@ class RuntimeGovernanceContext:
         default_factory=LegitimacyState
     )
 
-    governance_trace: GovernanceTrace = field(
-        default_factory=GovernanceTrace
-    )
+    governance_trace: Optional[GovernanceTrace] = None
 
     temporal_state: TemporalGovernanceState = field(
         default_factory=TemporalGovernanceState

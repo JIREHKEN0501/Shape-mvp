@@ -117,27 +117,31 @@ def normalize_runtime_context(
             ),
         ),
 
-        governance_trace=GovernanceTrace(
-            routing_status=governance_trace_data.get(
-                "routing_status",
-                "unknown",
-            ),
-            reasoning=governance_trace_data.get(
-                "reasoning",
-                [],
-            ),
-            routing_directives=(
-                governance_trace_data.get(
-                    "routing_directives",
-                    {},
-                )
-            ),
-            transparency_note=(
-                governance_trace_data.get(
-                    "transparency_note",
-                    "",
-                )
-            ),
+        governance_trace=(
+            GovernanceTrace(
+                routing_status=governance_trace_data.get(
+                    "routing_status",
+                    "unknown",
+                ),
+                reasoning=governance_trace_data.get(
+                    "reasoning",
+                    [],
+                ),
+                routing_directives=(
+                    governance_trace_data.get(
+                        "routing_directives",
+                        {},
+                    )
+                ),
+                transparency_note=(
+                    governance_trace_data.get(
+                        "transparency_note",
+                        "",
+                    )
+                ),
+            )
+            if governance_trace_data
+            else None
         ),
 
         temporal_state=TemporalGovernanceState(

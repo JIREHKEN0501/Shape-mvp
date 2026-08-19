@@ -153,21 +153,21 @@ def evaluate_governance_visibility(
             .active_modes
         )
 
-        governance_trace = {
-            "routing_status": (
-                governance_trace.routing_status
-            ),
-            "reasoning": (
-                governance_trace.reasoning
-            ),
-            "routing_directives": (
-                governance_trace.routing_directives
-            ),
-            "transparency_note": (
-                governance_trace.transparency_note
-            ),
-        }
-
+        if governance_trace is not None:
+            governance_trace = {
+                "routing_status": (
+                    governance_trace.routing_status
+                ),
+                "reasoning": (
+                    governance_trace.reasoning
+                ),
+                "routing_directives": (
+                    governance_trace.routing_directives
+                ),
+                "transparency_note": (
+                    governance_trace.transparency_note
+                ),
+            }
     else:
 
         governance_trace = runtime_context.get(
