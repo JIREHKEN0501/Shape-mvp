@@ -235,3 +235,120 @@ def test_generate_experience_summary_isolates_experience_records(
 
     assert list(summary["sessions"]) == ["session-A"]
     assert list(summary["tasks"]) == ["pattern_recognition_v1"]
+
+def test_completed_task_persistence_is_consumable_by_experience_summary(
+    monkeypatch,
+    tmp_path,
+):
+    import json
+
+    log_file = tmp_path / "data_log.jsonl"
+    experience_events_file = tmp_path / "experience_events.jsonl"
+
+    experience_events_file.write_text(
+        json.dumps(
+            {
+                "event": "experience_created",
+                "event_version": "1.0",
+                "experience_id": "experience-regression-1",
+                "participant_id": "participant-1",
+                "sequence_version": "1.0",
+                "ts": "2026-08-21T12:00:00Z",
+            }
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(experience_events_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.EXPERIENCE_EVENTS_LOG",
+        str(experience_events_file),
+    )
+
+    persisted = []
+
+    def fake_save_session_result(session):
+        saved = dict(session)
+        persisted.append(saved)
+
+        with log_file.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(saved) + "\n")
+
+        return saved
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.save_session_result",
+        fake_save_session_result,
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.analytics.DATA_LOG",
+        str(log_file),
+    )
+
+    session = {
+        "session_id": "session-regression-1",
+        "participant_id": "participant-1",
+        "experience_id": "experience-regression-1",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "user_answer": "I",
+                        "correct": "I",
+                        "time_taken_seconds": 6,
+                    },
+                    {
+                        "question_id": "pr_q2",
+                        "user_answer": "30",
+                        "correct": "30",
+                        "time_taken_seconds": 7,
+                    },
+                ],
+            }
+        ],
+    }
+
+    from project.app.services.experience_progression_service import (
+        complete_task_progression,
+    )
+
+    result = complete_task_progression(
+        experience_id="experience-regression-1",
+        participant_id="participant-1",
+        session=session,
+    )
+
+    assert result["ok"] is True
+
+    assert len(persisted) == 1
+
+    saved = persisted[0]
+
+    assert saved["participant_id"] == "participant-1"
+    assert saved["experience_id"] == "experience-regression-1"
+    assert saved["session_id"] == "session-regression-1"
+    assert saved["task_id"] == "pattern_recognition_v1"
+    assert saved["session_complete"] is True
+
+    summary = generate_experience_summary(
+        "experience-regression-1"
+    )
+
+    assert summary["has_data"] is True
+    assert summary["experience_id"] == "experience-regression-1"
+    assert summary["total_questions"] == 2
+    assert summary["objective_questions"] == 2
+    assert summary["correct_objective_questions"] == 2
+    assert summary["objective_accuracy"] == 1.0
+    assert list(summary["sessions"]) == [
+        "session-regression-1"
+    ]
