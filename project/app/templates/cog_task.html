@@ -276,6 +276,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           task_id: task.task_id,
+          session_complete: true,
           modules: [{
             module_name: task.modules[0].module_name,
             questions: answers

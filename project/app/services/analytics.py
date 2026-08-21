@@ -107,6 +107,203 @@ def _extract_task_attempts(records: List[Dict[str, Any]]) -> List[Dict[str, Any]
             attempts.append(r)
     return attempts
 
+def _extract_experience_task_attempts(
+    records: List[Dict[str, Any]],
+    experience_id: str,
+) -> List[Dict[str, Any]]:
+    """
+    Extract task-completion session records belonging to one experience.
+
+    Experience-aware task records use the session schema:
+        task_id
+        modules[].questions[]
+        participant_id
+        experience_id
+        session_id
+        session_complete
+
+    This adapter normalizes those records into one attempt per question
+    while preserving the experience/session boundary.
+    """
+    attempts: List[Dict[str, Any]] = []
+
+    for record in records:
+        if record.get("experience_id") != experience_id:
+            continue
+
+        if record.get("session_complete") is not True:
+            continue
+
+        task_id = record.get("task_id")
+        participant_id = record.get("participant_id")
+
+        if not task_id or not participant_id:
+            continue
+
+        modules = record.get("modules")
+
+        if not isinstance(modules, list):
+            continue
+
+        for module in modules:
+            if not isinstance(module, dict):
+                continue
+
+            questions = module.get("questions")
+
+            if not isinstance(questions, list):
+                continue
+
+            for question in questions:
+                if not isinstance(question, dict):
+                    continue
+
+                attempts.append(
+                    {
+                        "event_type": "experience_task_attempt",
+                        "participant_id": participant_id,
+                        "experience_id": experience_id,
+                        "session_id": record.get("session_id"),
+                        "task_id": task_id,
+                        "ts": record.get("saved_ts") or record.get("ts"),
+                        "question_id": question.get("question_id"),
+                        "user_answer": question.get("user_answer"),
+                        "correct": question.get("correct"),
+                        "time_taken_seconds": question.get(
+                            "time_taken_seconds"
+                        ),
+                        "module_name": module.get("module_name"),
+                        "metrics": {},
+                    }
+                )
+
+    return attempts
+
+def generate_experience_summary(experience_id: str) -> Dict[str, Any]:
+    """
+    Generate an analytics summary bounded strictly to one experience.
+
+    Experience-level evidence is read from completed session records
+    containing the requested experience_id.
+
+    Objective questions contribute to accuracy metrics only when a
+    non-null correct answer is present. Decision/preference questions
+    are preserved as observations and are not scored as correct/incorrect.
+    """
+
+    if not experience_id:
+        return {
+            "experience_id": experience_id,
+            "has_data": False,
+            "message": "experience_id_required",
+        }
+
+    all_records = _load_all_records()
+
+    attempts = _extract_experience_task_attempts(
+        all_records,
+        experience_id,
+    )
+
+    if not attempts:
+        return {
+            "experience_id": experience_id,
+            "has_data": False,
+            "message": "no_records_for_experience",
+        }
+
+    objective_attempts = []
+    decision_observations = []
+
+    for index, attempt in enumerate(attempts):
+        correct = attempt.get("correct")
+
+        if correct is not None:
+            attempt = dict(attempt)
+            attempt["is_correct"] = (
+                str(attempt.get("user_answer")).strip()
+                == str(correct).strip()
+            )
+
+            attempts[index] = attempt
+            objective_attempts.append(attempt)
+        else:
+            decision_observations.append(attempt)
+
+    correct_attempts = sum(
+        1
+        for attempt in objective_attempts
+        if attempt.get("is_correct") is True
+    )
+
+    objective_count = len(objective_attempts)
+
+    accuracy = (
+        correct_attempts / float(objective_count)
+        if objective_count > 0
+        else None
+    )
+
+    tasks = {}
+    sessions = {}
+
+    for attempt in attempts:
+        task_id = attempt.get("task_id") or "unknown"
+        session_id = attempt.get("session_id") or "unknown"
+
+        task_entry = tasks.setdefault(
+            task_id,
+            {
+                "task_id": task_id,
+                "questions": 0,
+                "objective_questions": 0,
+                "decision_observations": 0,
+                "correct": 0,
+                "accuracy": None,
+            },
+        )
+
+        task_entry["questions"] += 1
+
+        if attempt.get("correct") is not None:
+            task_entry["objective_questions"] += 1
+
+            if attempt.get("is_correct") is True:
+                task_entry["correct"] += 1
+        else:
+            task_entry["decision_observations"] += 1
+
+        session_entry = sessions.setdefault(
+            session_id,
+            {
+                "session_id": session_id,
+                "task_id": task_id,
+                "questions": 0,
+            },
+        )
+
+        session_entry["questions"] += 1
+
+    for task_entry in tasks.values():
+        count = task_entry["objective_questions"]
+
+        if count > 0:
+            task_entry["accuracy"] = (
+                task_entry["correct"] / float(count)
+            )
+
+    return {
+        "experience_id": experience_id,
+        "has_data": True,
+        "total_questions": len(attempts),
+        "objective_questions": len(objective_attempts),
+        "decision_observations": len(decision_observations),
+        "correct_objective_questions": correct_attempts,
+        "objective_accuracy": accuracy,
+        "tasks": tasks,
+        "sessions": sessions,
+        "attempts": attempts,
+    }
 
 def _match_session_for_attempt(
     attempt: Dict[str, Any],
@@ -120,6 +317,7 @@ def _match_session_for_attempt(
     """
     participant_id = attempt.get("participant_id")
     task_id = attempt.get("task_id")
+    experience_id = attempt.get("experience_id")
     ts_attempt = attempt.get("ts")
 
     if participant_id is None or ts_attempt is None:
@@ -131,6 +329,9 @@ def _match_session_for_attempt(
     for sess in sessions:
         if sess.get("participant_id") != participant_id:
             continue
+        if experience_id is not None:
+            if sess.get("experience_id") != experience_id:
+                continue
 
         ts_sess = sess.get("ts")
         if ts_sess is None or ts_sess > ts_attempt:
