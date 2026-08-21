@@ -352,3 +352,158 @@ def test_completed_task_persistence_is_consumable_by_experience_summary(
     assert list(summary["sessions"]) == [
         "session-regression-1"
     ]
+
+def test_participant_submission_persists_completed_session_for_experience_analytics(
+    monkeypatch,
+    tmp_path,
+):
+    import json
+
+    from project.app import create_app
+
+    log_file = tmp_path / "data_log.jsonl"
+    experience_events_file = tmp_path / "experience_events.jsonl"
+
+    experience_events_file.write_text(
+        json.dumps(
+            {
+                "event": "experience_created",
+                "event_version": "1.0",
+                "experience_id": "experience-route-regression",
+                "participant_id": "participant-route-1",
+                "sequence_version": "1.0",
+                "ts": "2026-08-21T12:00:00Z",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.analytics.DATA_LOG",
+        str(log_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.storage.DATA_LOG",
+        str(log_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.EXPERIENCE_EVENTS_LOG",
+        str(experience_events_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(experience_events_file),
+    )
+
+    # We will replace the actual experience lookup with a valid
+    # in-memory experience belonging to the participant.
+    experience = {
+        "experience_id": "experience-route-regression",
+        "participant_id": "participant-route-1",
+        "status": "active",
+    }
+
+    monkeypatch.setattr(
+        "project.app.routes.participant.load_experience_by_id",
+        lambda experience_id: (
+            experience
+            if experience_id == "experience-route-regression"
+            else None
+        ),
+    )
+
+    monkeypatch.setattr(
+        "project.app.routes.participant.experience_belongs_to_participant",
+        lambda loaded_experience, participant_id: (
+            loaded_experience.get("participant_id") == participant_id
+        ),
+    )
+
+    monkeypatch.setattr(
+        "project.app.routes.participant.is_experience_active",
+        lambda loaded_experience: True,
+    )
+
+    app = create_app()
+    app.config["TESTING"] = True
+
+    client = app.test_client()
+
+    client.set_cookie("participant_id", "participant-route-1")
+    client.set_cookie("experience_id", "experience-route-regression")
+
+    response = client.post(
+        "/participant/submit_result",
+        json={
+            "task_id": "pattern_recognition_v1",
+            "session_id": "route-regression-session-1",
+            "modules": [
+                {
+                    "module_name": "pattern_1",
+                    "questions": [
+                        {
+                            "question_id": "pr_q1",
+                            "user_answer": "I",
+                            "correct": "I",
+                            "time_taken_seconds": 6,
+                        },
+                        {
+                            "question_id": "pr_q2",
+                            "user_answer": "30",
+                            "correct": "30",
+                            "time_taken_seconds": 7,
+                        },
+                    ],
+                }
+            ],
+            "session_complete": True,
+        },
+    )
+
+    assert response.status_code == 201, response.get_json()
+
+    payload = response.get_json()
+
+    assert payload["session_complete"] is True
+    assert payload["saved"]["participant_id"] == "participant-route-1"
+    assert payload["saved"]["experience_id"] == "experience-route-regression"
+    assert payload["saved"]["task_id"] == "pattern_recognition_v1"
+
+    assert log_file.exists()
+
+    records = [
+        json.loads(line)
+        for line in log_file.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    completed = [
+        record
+        for record in records
+        if record.get("session_id") == "route-regression-session-1"
+    ]
+
+    assert len(completed) == 1
+
+    persisted = completed[0]
+
+    assert persisted["session_complete"] is True
+    assert persisted["experience_id"] == "experience-route-regression"
+    assert persisted["participant_id"] == "participant-route-1"
+
+    from project.app.services.analytics import generate_experience_summary
+
+    summary = generate_experience_summary(
+        "experience-route-regression"
+    )
+
+    assert summary["has_data"] is True
+    assert summary["experience_id"] == "experience-route-regression"
+    assert summary["total_questions"] == 2
+    assert summary["objective_questions"] == 2
+    assert summary["correct_objective_questions"] == 2
+    assert summary["objective_accuracy"] == 1.0
