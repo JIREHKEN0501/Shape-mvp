@@ -291,14 +291,22 @@
         document.querySelectorAll('input[type="radio"]')
           .forEach(i => i.disabled = true);
 
-        if (resp.session_complete === true && resp.session_summary) {
+        if (resp.experience_complete === true) {
           document.getElementById("status-text").innerHTML =
-            "<b>Session complete 🎉 Thank you for participating.</b>";
+            "<b>Experience complete 🎉 Thank you for participating.</b>";
 
-          renderSessionSummary(resp.session_summary);
+          if (resp.session_summary) {
+            renderSessionSummary(resp.session_summary);
+          }
+
           nextBtn.style.display = "none";
-        } else {
+        } else if (resp.next_task_id) {
+          document.getElementById("status-text").innerHTML =
+            "<b>Task complete.</b> Continue to the next task.";
+
           nextBtn.style.display = "inline-block";
+        } else {
+          nextBtn.style.display = "none";
         }
       });
     };

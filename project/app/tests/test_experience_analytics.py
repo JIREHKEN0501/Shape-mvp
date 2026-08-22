@@ -472,6 +472,8 @@ def test_participant_submission_persists_completed_session_for_experience_analyt
     assert payload["saved"]["participant_id"] == "participant-route-1"
     assert payload["saved"]["experience_id"] == "experience-route-regression"
     assert payload["saved"]["task_id"] == "pattern_recognition_v1"
+    assert payload["experience_complete"] is False
+    assert payload["next_task_id"] == "strategy_under_constraint_v1"
 
     assert log_file.exists()
 
