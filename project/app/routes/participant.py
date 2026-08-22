@@ -31,6 +31,9 @@ from project.app.utils.experience_loader import (
     experience_belongs_to_participant,
     is_experience_active,
 )
+from project.app.utils.experience_progression import (
+    load_experience_progression,
+)
 from project.app.utils.experience_lifecycle import complete_experience
 from project.app.utils.summary_adapter import build_session_summary
 from project.app.utils.summary_validator import validate_summary_schema
@@ -547,6 +550,54 @@ def load_task(task_id):
             "error": "invalid_task_sequence",
             "task": task_id
         }), 400
+
+    # ---- Experience context ----
+    experience_id = request.cookies.get("experience_id")
+    if not experience_id:
+        return jsonify({"error": "no_experience_cookie"}), 401
+
+    experience = load_experience_by_id(experience_id)
+    if experience is None:
+        return jsonify({"error": "experience_not_found"}), 404
+
+    if not experience_belongs_to_participant(
+        experience,
+        participant_id,
+    ):
+        return jsonify({"error": "experience_not_owned"}), 403
+
+    if not is_experience_active(experience):
+        return jsonify({"error": "experience_not_active"}), 409
+
+    progression = load_experience_progression(
+        experience_id
+    )
+
+    if progression is None:
+        return jsonify({
+            "error": "progression_state_unavailable"
+        }), 409
+
+    if progression.get("status") == "invalid":
+        return jsonify({
+            "error": progression.get(
+                "error",
+                "invalid_progression_history",
+            )
+        }), 409
+
+    expected_task = progression.get("expected_task")
+
+    if expected_task is None:
+        return jsonify({
+            "error": "experience_complete"
+        }), 409
+
+    if task_id != expected_task:
+        return jsonify({
+            "error": "task_not_expected",
+            "expected_task": expected_task,
+        }), 409
 
     # ---- Task JSON path ----
     tasks_dir = os.path.abspath(

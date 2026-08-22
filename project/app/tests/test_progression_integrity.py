@@ -329,3 +329,209 @@ def test_submission_after_completed_experience_is_rejected(
 
     assert payload["error"] == "experience_not_active"
     assert saved_sessions == []
+
+def test_task_loader_allows_expected_task(
+    monkeypatch,
+    tmp_path,
+):
+    app = create_app({
+        "TESTING": True,
+        "WTF_CSRF_ENABLED": False,
+    })
+
+    events_file = tmp_path / "experience_events.jsonl"
+    events_file.write_text(
+        "\n".join([
+            '{"event":"experience_created",'
+            '"event_version":"1.0",'
+            '"experience_id":"experience-1",'
+            '"participant_id":"participant-1",'
+            '"sequence_version":"1.0",'
+            '"ts":"2026-08-14T12:00:00Z"}',
+        ]) + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    experience = make_active_experience()
+
+    monkeypatch.setattr(
+        participant_routes,
+        "load_experience_by_id",
+        lambda experience_id: experience,
+    )
+
+    monkeypatch.setattr(
+        participant_routes,
+        "load_experience_progression",
+        lambda experience_id: {
+            "experience_id": "experience-1",
+            "participant_id": "participant-1",
+            "status": "active",
+            "completed_tasks": [],
+            "expected_task": "pattern_recognition_v1",
+        },
+    )
+
+    with app.test_client() as client:
+        client.set_cookie(
+            "participant_id",
+            "participant-1",
+        )
+        client.set_cookie(
+            "experience_id",
+            "experience-1",
+        )
+
+        response = client.get(
+            "/task/pattern_recognition_v1"
+        )
+
+    assert response.status_code == 200
+
+def test_task_loader_rejects_unexpected_task(
+    monkeypatch,
+    tmp_path,
+):
+    app = create_app({
+        "TESTING": True,
+        "WTF_CSRF_ENABLED": False,
+    })
+
+    events_file = tmp_path / "experience_events.jsonl"
+    events_file.write_text(
+        "\n".join([
+            '{"event":"experience_created",'
+            '"event_version":"1.0",'
+            '"experience_id":"experience-1",'
+            '"participant_id":"participant-1",'
+            '"sequence_version":"1.0",'
+            '"ts":"2026-08-14T12:00:00Z"}',
+        ]) + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    experience = make_active_experience()
+
+    monkeypatch.setattr(
+        participant_routes,
+        "load_experience_by_id",
+        lambda experience_id: experience,
+    )
+
+    monkeypatch.setattr(
+        participant_routes,
+        "load_experience_progression",
+        lambda experience_id: {
+            "experience_id": "experience-1",
+            "participant_id": "participant-1",
+            "status": "active",
+            "completed_tasks": [],
+            "expected_task": "pattern_recognition_v1",
+        },
+    )
+
+    with app.test_client() as client:
+        client.set_cookie(
+            "participant_id",
+            "participant-1",
+        )
+        client.set_cookie(
+            "experience_id",
+            "experience-1",
+        )
+
+        response = client.get(
+            "/task/strategy_under_constraint_v1"
+        )
+
+    assert response.status_code == 409
+
+    payload = response.get_json()
+
+    assert payload["error"] == "task_not_expected"
+    assert payload["expected_task"] == (
+        "pattern_recognition_v1"
+    )
+
+def test_task_loader_rejects_completed_experience(
+    monkeypatch,
+):
+    app = create_app({
+        "TESTING": True,
+        "WTF_CSRF_ENABLED": False,
+    })
+
+    experience = make_active_experience()
+    experience["status"] = "completed"
+
+    monkeypatch.setattr(
+        participant_routes,
+        "load_experience_by_id",
+        lambda experience_id: experience,
+    )
+
+    with app.test_client() as client:
+        client.set_cookie(
+            "participant_id",
+            "participant-1",
+        )
+        client.set_cookie(
+            "experience_id",
+            "experience-1",
+        )
+
+        response = client.get(
+            "/task/pattern_recognition_v1"
+        )
+
+    assert response.status_code == 409
+    assert response.get_json()["error"] == (
+        "experience_not_active"
+    )
+
+
+def test_task_loader_rejects_experience_owned_by_other_participant(
+    monkeypatch,
+):
+    app = create_app({
+        "TESTING": True,
+        "WTF_CSRF_ENABLED": False,
+    })
+
+    experience = make_active_experience()
+    experience["participant_id"] = "participant-other"
+
+    monkeypatch.setattr(
+        participant_routes,
+        "load_experience_by_id",
+        lambda experience_id: experience,
+    )
+
+    with app.test_client() as client:
+        client.set_cookie(
+            "participant_id",
+            "participant-1",
+        )
+        client.set_cookie(
+            "experience_id",
+            "experience-1",
+        )
+
+        response = client.get(
+            "/task/pattern_recognition_v1"
+        )
+
+    assert response.status_code == 403
+    assert response.get_json()["error"] == (
+        "experience_not_owned"
+    )
