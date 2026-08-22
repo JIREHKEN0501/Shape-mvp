@@ -61,7 +61,10 @@ def generate_routing_trace(
             "reduce_difficulty": arbitration_result.get("reduce_difficulty"),
             "increase_difficulty": arbitration_result.get("increase_difficulty"),
         },
-
+        "routing_authority": arbitration_result.get(
+            "routing_authority",
+            {}
+        ),
         "conflict_detected": arbitration_result.get(
             "conflict_detected",
             False
