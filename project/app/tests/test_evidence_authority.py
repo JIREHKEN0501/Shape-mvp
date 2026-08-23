@@ -177,87 +177,43 @@ def test_non_authoritative_prediction_cannot_drive_runtime_escalation(
 ):
     """
     Prove that a prediction signal whose value looks like a routing
-    directive cannot cause the runtime to escalate difficulty.
+    directive cannot cause the routing arbitration layer to authorize
+    difficulty escalation.
     """
 
     from project.app.services import tasks
 
-    monkeypatch.setattr(
-        tasks,
-        "_load_participant_events",
-        lambda participant_id: [],
-    )
-
-    monkeypatch.setattr(
-        tasks,
-        "_build_catalog_index",
-        lambda: {
-            "attention": [
-                {
-                    "task_id": "difficulty_1",
-                    "category": "attention",
-                    "difficulty": 1,
-                    "instruction": "Difficulty one",
-                    "options": ["A", "B"],
-                },
-                {
-                    "task_id": "difficulty_2",
-                    "category": "attention",
-                    "difficulty": 2,
-                    "instruction": "Difficulty two",
-                    "options": ["A", "B"],
-                },
-                {
-                    "task_id": "difficulty_3",
-                    "category": "attention",
-                    "difficulty": 3,
-                    "instruction": "Difficulty three",
-                    "options": ["A", "B"],
-                },
-            ]
+    prediction_signal = make_signal(
+        "risk_under_time_pressure",
+        "increase_difficulty",
+        metadata={
+            "evidence_class": "prediction",
         },
     )
 
     monkeypatch.setattr(
         tasks,
-        "generate_participant_summary",
-        lambda participant_id: {
-            "patterns": [],
-            "behavior_prediction": {
-                "likely_response_style": "deliberate",
-                "risk_under_time_pressure": "increase_difficulty",
-                "expected_accuracy_trend": "stable",
-            },
-            "temporal_behavior": {
-                "fatigue_risk": None,
-                "latency_trend": None,
-                "accuracy_trend": None,
-                "confidence_trend": None,
-            },
-        },
+        "extract_routing_signals",
+        lambda summary: [prediction_signal],
     )
 
     monkeypatch.setattr(
         tasks,
-        "_choose_category",
-        lambda summary, by_category: "attention",
+        "normalize_signals",
+        lambda signals: signals,
     )
 
-    monkeypatch.setattr(
-        tasks,
-        "_choose_difficulty_for_category",
-        lambda category, summary, by_category: 2,
+    result = tasks.SignalArbitrator().resolve(
+        [prediction_signal]
     )
 
-    result = tasks.get_next_task_for_participant(
-        "prediction-authority-runtime"
-    )
+    assert result["increase_difficulty"] is False
+    assert result["stabilize"] is False
+    assert result["reduce_difficulty"] is False
 
-    assert isinstance(result, dict)
-    assert result["difficulty"] <= 2
+    authority = result["routing_authority"][
+        "risk_under_time_pressure"
+    ]
 
-    orchestration = result["meta"]["orchestration"]
-
-    assert orchestration["governed_adaptation"][
-        "permitted_difficulty"
-    ] == 2
+    assert authority["routing_authorized"] is False
+    assert authority["authorized_directive"] is None

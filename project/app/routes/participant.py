@@ -42,6 +42,9 @@ from project.app.services.experience_progression_service import (
     complete_task_progression,
     _append_experience_event,
 )
+from project.app.services.analytics import (
+    generate_experience_summary,
+)
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -490,6 +493,65 @@ def get_participant_session(session_id):
 
     return jsonify(response), 200
 
+# ================================
+# PARTICIPANT EXPERIENCE SUMMARY
+# (experience-scoped, privacy-safe)
+# ================================
+
+@participant_bp.route(
+    "/participant/experience/<experience_id>/summary",
+    methods=["GET"],
+)
+@limiter.limit("10 per minute")
+def get_participant_experience_summary(experience_id):
+
+    participant_id = request.cookies.get("participant_id")
+
+    if not participant_id:
+        return jsonify({
+            "error": "no_participant_cookie"
+        }), 401
+
+    experience = load_experience_by_id(experience_id)
+
+    if experience is None:
+        return jsonify({
+            "error": "experience_not_found"
+        }), 404
+
+    if not experience_belongs_to_participant(
+        experience,
+        participant_id,
+    ):
+        return jsonify({
+            "error": "unauthorized"
+        }), 403
+
+    if experience.get("status") != "completed":
+        return jsonify({
+            "error": "experience_not_completed"
+        }), 409
+
+    summary = generate_experience_summary(
+        experience_id
+    )
+
+    if not summary.get("has_data"):
+        return jsonify({
+            "error": summary.get(
+                "message",
+                "experience_summary_unavailable",
+            )
+        }), 404
+
+    audit_record(
+        actor=f"participant:{participant_id}",
+        action="retrieve_experience_summary",
+        subject=experience_id,
+        notes="participant_self_access_experience_summary",
+    )
+
+    return jsonify(summary), 200
 
 # ================================
 #  SELF-ERASE
