@@ -45,6 +45,9 @@ from project.app.services.experience_progression_service import (
 from project.app.services.analytics import (
     generate_experience_summary,
 )
+from project.app.services.experience_insights import (
+    generate_experience_insights,
+)
 
 participant_bp = Blueprint("participant", __name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -544,6 +547,13 @@ def get_participant_experience_summary(experience_id):
             )
         }), 404
 
+    insights = generate_experience_insights(
+        summary
+    )
+
+    response = dict(summary)
+    response["insights"] = insights
+
     audit_record(
         actor=f"participant:{participant_id}",
         action="retrieve_experience_summary",
@@ -551,7 +561,7 @@ def get_participant_experience_summary(experience_id):
         notes="participant_self_access_experience_summary",
     )
 
-    return jsonify(summary), 200
+    return jsonify(response), 200
 
 # ================================
 #  SELF-ERASE

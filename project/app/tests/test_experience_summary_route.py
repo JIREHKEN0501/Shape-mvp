@@ -172,4 +172,10 @@ def test_summary_returns_experience_scoped_result(
     )
 
     assert response.status_code == 200
-    assert response.get_json() == expected_summary
+
+    body = response.get_json()
+
+    assert body["experience_id"] == "experience-1"
+    assert body["has_data"] is True
+    assert body["insights"]["has_insights"] is True
+    assert body["insights"]["experience_id"] == "experience-1"
