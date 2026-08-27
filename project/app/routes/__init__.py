@@ -11,14 +11,6 @@ import time
 # prefer helpers module for audit_record / get_admin_token
 from project.app.helpers import audit_record, DATA_LOG, generate_participant_id
 
-# bot detection stub
-from project.app.security import bot_tripwire
-from project.app.services.validators import (
-    validate_behavioral_session,
-    validate_cognitive_session,
-)
-from project.app.services.metrics import compute_behavioral_metrics, evaluate_task_answer
-from project.app.services.sessions import save_session_result
 from project.app.services.analytics import (
     generate_participant_summary,
     generate_global_summary,
