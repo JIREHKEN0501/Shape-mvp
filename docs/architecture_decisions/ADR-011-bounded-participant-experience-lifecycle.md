@@ -1,6 +1,6 @@
 # ADR-011: Bounded Participant Experience Lifecycle and Experience-Scoped Summaries
 
-**Status:** Proposed
+**Status:** Accepted
 
 ---
 
@@ -469,6 +469,28 @@ cross-experience isolation tests;
 task sequence regression tests.
 
 Review the resulting diff and repository status before committing.
+
+## 14A. Implementation and Verification Status
+
+ADR-011 has been implemented and verified through the participant experience flow.
+
+The implementation verifies:
+
+- bounded experience creation and lifecycle state;
+- experience-scoped task progression;
+- rejection of tasks outside the current progression state;
+- task-session membership within the active experience;
+- separation of task completion from experience completion;
+- experience-scoped analytics and summary generation;
+- objective performance and decision-observation separation;
+- fail-closed summary behavior;
+- participant-facing completion and experience reflection;
+- final-task experience completion;
+- cross-experience and ownership boundaries.
+
+Verification includes the full participant progression integration test and the existing application test suite.
+
+The implementation is considered complete for the scope defined by this ADR. Automatic expiry, portable cross-experience state, longitudinal participant profiling, and adaptive continuity remain outside the scope of ADR-011.
 
 15. Relationship to ADR-010
 

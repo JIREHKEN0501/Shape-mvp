@@ -59,6 +59,9 @@
     <p id="status-text"><b>Response recorded successfully ✅</b></p>
     <button id="next-task-btn" style="display:none;">Next Task →</button>
     <button id="retry-btn">Retry</button>
+    <button id="new-experience-btn" style="display:none;">
+      Start New Experience
+    </button>
   </div>
 
   <!-- Phase 9B-1: Session summary (hidden by default) -->
@@ -110,15 +113,23 @@
     let startTime = Date.now();
     let answers = [];
 
+    const questionStartTimes = {};
+    const questionAnswerTimes = {};
+
+    let nextTaskId = "{{ next_task_id }}";
+
     const taskArea = document.getElementById("task-area");
     const submitBtn = document.getElementById("submit-btn");
     const statusBox = document.getElementById("status-box");
     const nextBtn = document.getElementById("next-task-btn");
     const retryBtn = document.getElementById("retry-btn");
+    const newExperienceBtn = document.getElementById("new-experience-btn");
     const summaryBox = document.getElementById("session-summary");
     const summaryContent = document.getElementById("summary-content");
 
     function renderQuestion(q) {
+
+      questionStartTimes[q.question_id] = Date.now();
       const div = document.createElement("div");
 
       div.innerHTML = `
@@ -134,6 +145,8 @@
 
       div.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener("change", () => {
+
+          questionAnswerTimes[q.question_id] = Date.now();
           div.querySelectorAll('.option')
             .forEach(opt => opt.classList.remove('selected'));
           radio.parentElement.classList.add('selected');
@@ -197,16 +210,21 @@
         summaryContent.appendChild(p);
       }
 
-      // Response pace (observational)
+      // Average response time across questions (observational)
       if (data.avg_time_per_question !== undefined) {
         const p = document.createElement("p");
-        p.innerHTML = `<b>Response pace:</b> ${
-          data.avg_time_per_question < 4
-            ? "You responded very quickly."
-            : data.avg_time_per_question < 7
-            ? "You responded at a steady, moderate pace."
-            : "You took a more deliberate pace with your responses."
+        const avg = Number(data.avg_time_per_question);
+
+        p.innerHTML = `<b>Average response time:</b> ${
+          Number.isFinite(avg) ? avg.toFixed(3) : "Not available"
+        } seconds per question. ${
+          avg < 4
+            ? "You responded very quickly on average."
+            : avg < 7
+            ? "You responded at a steady, moderate pace on average."
+            : "You took a more deliberate pace on average."
         }`;
+
         summaryContent.appendChild(p);
       }
 
@@ -266,7 +284,14 @@
             question_id: q.question_id,
             correct: q.correct,
             user_answer: choice,
-            time_taken_seconds: (endTime - startTime) / 1000
+            time_taken_seconds:
+              questionAnswerTimes[q.question_id] !== undefined &&
+              questionStartTimes[q.question_id] !== undefined
+                ? (
+                    questionAnswerTimes[q.question_id] -
+                    questionStartTimes[q.question_id]
+                  ) / 1000
+                : null
           });
         }
       }
@@ -299,8 +324,14 @@
             renderSessionSummary(resp.session_summary);
           }
 
+          loadExperienceReflection();
+
           nextBtn.style.display = "none";
+          retryBtn.style.display = "none";
+          newExperienceBtn.style.display = "inline-block";
         } else if (resp.next_task_id) {
+          nextTaskId = resp.next_task_id;
+
           document.getElementById("status-text").innerHTML =
             "<b>Task complete.</b> Continue to the next task.";
 
@@ -311,12 +342,194 @@
       });
     };
 
+
+    async function loadExperienceReflection() {
+      const experienceId = "{{ experience_id }}";
+
+      if (!experienceId) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/participant/experience/${encodeURIComponent(experienceId)}/summary`
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        const reflectionBox = document.createElement("div");
+        reflectionBox.id = "experience-reflection";
+        reflectionBox.style.marginTop = "24px";
+        reflectionBox.style.padding = "20px";
+        reflectionBox.style.border = "1px solid #ddd";
+        reflectionBox.style.borderRadius = "8px";
+        reflectionBox.style.background = "#fafafa";
+
+        const title = document.createElement("h3");
+        title.textContent = "What You Did";
+        reflectionBox.appendChild(title);
+
+        const intro = document.createElement("p");
+        intro.textContent =
+          "Here is what this experience recorded about your performance and decisions.";
+        reflectionBox.appendChild(intro);
+
+        const insights = data.insights || {};
+
+        const currentTaskId = task.task_id;
+
+        const currentPerformance = Array.isArray(insights.performance)
+          ? insights.performance.filter(
+              (performance) => performance.task_id === currentTaskId
+            )
+          : [];
+
+        if (currentPerformance.length > 0) {
+          const performanceTitle = document.createElement("h4");
+          performanceTitle.textContent = "Performance";
+          performanceTitle.style.marginTop = "20px";
+          reflectionBox.appendChild(performanceTitle);
+
+          for (const performance of currentPerformance) {
+            const item = document.createElement("p");
+            item.textContent = performance.result || "";
+            reflectionBox.appendChild(item);
+          }
+        }
+
+        if (
+          Array.isArray(insights.observations) &&
+          insights.observations.length > 0
+        ) {
+          const observationsTitle = document.createElement("h4");
+          observationsTitle.textContent = "Decisions you made";
+          observationsTitle.style.marginTop = "20px";
+          reflectionBox.appendChild(observationsTitle);
+
+          const list = document.createElement("ul");
+
+          for (const observation of insights.observations) {
+            const item = document.createElement("li");
+
+            const selected =
+              observation.selected_option || "No option recorded";
+
+            const taskId =
+              observation.task_id || "This task";
+
+            item.textContent =
+              `${taskId}: selected "${selected}"`;
+
+            if (
+              observation.time_taken_seconds !== null &&
+              observation.time_taken_seconds !== undefined
+            ) {
+              item.textContent +=
+                ` (${observation.time_taken_seconds} seconds)`;
+            }
+
+            list.appendChild(item);
+          }
+
+          reflectionBox.appendChild(list);
+        }
+
+        if (
+          Array.isArray(insights.evidence_limits) &&
+          insights.evidence_limits.length > 0
+        ) {
+          const limitsTitle = document.createElement("h4");
+          limitsTitle.textContent = "What this reflection means";
+          limitsTitle.style.marginTop = "20px";
+          reflectionBox.appendChild(limitsTitle);
+
+          for (const limit of insights.evidence_limits) {
+            const item = document.createElement("p");
+            item.textContent = limit;
+            item.style.fontSize = "0.9em";
+            item.style.color = "#555";
+            reflectionBox.appendChild(item);
+          }
+        }
+
+        if (insights.next_experiment) {
+          const nextTitle = document.createElement("h4");
+          nextTitle.textContent = "What comes next";
+          nextTitle.style.marginTop = "20px";
+          reflectionBox.appendChild(nextTitle);
+
+          const nextText = document.createElement("p");
+          nextText.textContent =
+            insights.next_experiment.reason || "";
+          reflectionBox.appendChild(nextText);
+        }
+
+        document.body.appendChild(reflectionBox);
+
+      } catch (error) {
+        console.error(
+          "Unable to load experience reflection:",
+          error
+        );
+      }
+    }
+
     retryBtn.onclick = () => window.location.reload();
 
-    nextBtn.onclick = () => {
-      window.location.href = "/task/{{ next_task_id }}";
+    newExperienceBtn.onclick = async () => {
+      newExperienceBtn.disabled = true;
+      newExperienceBtn.textContent = "Starting...";
+
+      try {
+        const response = await fetch(
+          "/participant/experience/new",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(
+            data.error || "experience_creation_failed"
+          );
+        }
+
+        window.location.href =
+          `/task/${encodeURIComponent(data.next_task_id)}`;
+
+      } catch (error) {
+        console.error(
+          "Unable to start new experience:",
+          error
+        );
+
+        newExperienceBtn.disabled = false;
+        newExperienceBtn.textContent =
+          "Start New Experience";
+
+        document.getElementById("status-text").innerHTML =
+          "<b>Unable to start a new experience. Please try again.</b>";
+      }
     };
-    
+
+
+    nextBtn.onclick = () => {
+      if (!nextTaskId) {
+        return;
+      }
+
+      window.location.href =
+        `/task/${encodeURIComponent(nextTaskId)}`;
+    };
     /* Phase 9C-2-A: Interpretation toggle handler */
     const toggleBtn = document.getElementById("toggle-help");
     const helpText = document.getElementById("help-text");

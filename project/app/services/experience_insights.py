@@ -49,22 +49,40 @@ def generate_experience_insights(
 
     performance = []
 
-    objective_accuracy = summary.get(
-        "objective_accuracy"
-    )
+    objective_by_task: Dict[str, List[Dict[str, Any]]] = {}
 
-    if objective_accuracy is not None:
+    for attempt in objective_attempts:
+        task_id = attempt.get("task_id") or "unknown"
+        objective_by_task.setdefault(task_id, []).append(attempt)
+
+    for task_id, task_attempts in objective_by_task.items():
+        task_correct = sum(
+            1
+            for attempt in task_attempts
+            if (
+                str(attempt.get("user_answer")).strip()
+                == str(attempt.get("correct")).strip()
+            )
+        )
+
+        task_count = len(task_attempts)
+
+        task_accuracy = (
+            task_correct / float(task_count)
+            if task_count > 0
+            else None
+        )
+
         performance.append({
+            "task_id": task_id,
             "dimension": "objective_performance",
             "result": (
-                f"{summary.get('correct_objective_questions', 0)} "
-                f"of {summary.get('objective_questions', 0)} "
+                f"{task_correct} of {task_count} "
                 "objective questions answered correctly"
             ),
-            "accuracy": objective_accuracy,
+            "accuracy": task_accuracy,
             "evidence_type": "objective",
         })
-
     observations = []
 
     for attempt in decision_observations:

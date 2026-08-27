@@ -127,7 +127,26 @@ def test_second_task_is_rejected_before_first_task(
     assert completed_experiences == []
 
 def make_completed_cognitive_session(task_id="pattern_recognition_v1"):
-    session = make_cognitive_session(task_id)
+    if task_id == "strategy_under_constraint_v1":
+        session = {
+            "task_id": task_id,
+            "modules": [
+                {
+                    "module_name": "test-module",
+                    "questions": [
+                        {
+                            "question_id": "q1",
+                            "correct": None,
+                            "user_answer": "A",
+                            "time_taken_seconds": 3.0,
+                        }
+                    ],
+                }
+            ],
+        }
+    else:
+        session = make_cognitive_session(task_id)
+
     session["session_complete"] = True
     return session
 
@@ -594,16 +613,33 @@ def test_participant_progression_runs_end_to_end(
     )
 
     monkeypatch.setattr(
+        "project.app.helpers.DATA_LOG",
+        str(data_log_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.analytics.DATA_LOG",
+        str(data_log_file),
+    )
+
+    def complete_experience_for_test(
+        experience_id,
+        participant_id,
+    ):
+        experience_state["status"] = "completed"
+        experience_state["completed_ts"] = (
+            "2026-08-14T12:10:00Z"
+        )
+        return dict(experience_state)
+
+    monkeypatch.setattr(
         participant_routes,
         "complete_experience",
-        lambda experience_id, participant_id: {
-            **experience_state,
-            "status": "completed",
-            "completed_ts": "2026-08-14T12:10:00Z",
-        },
+        complete_experience_for_test,
     )
 
     with app.test_client() as client:
+
         client.set_cookie(
             "participant_id",
             "participant-1",
@@ -669,6 +705,21 @@ def test_participant_progression_runs_end_to_end(
         assert payload["session_complete"] is True
         assert payload["experience_complete"] is True
         assert payload["next_task_id"] is None
+
+        # Completed experience must expose its final summary.
+        response = client.get(
+            "/participant/experience/experience-1/summary"
+        )
+        assert response.status_code == 200
+
+        summary_payload = response.get_json()
+
+        assert summary_payload["has_data"] is True
+        assert summary_payload["experience_id"] == "experience-1"
+        assert summary_payload["total_questions"] == 2
+        assert summary_payload["objective_questions"] == 1
+        assert summary_payload["decision_observations"] == 1
+        assert summary_payload["insights"]["has_insights"] is True
 
     records = [
         __import__("json").loads(line)

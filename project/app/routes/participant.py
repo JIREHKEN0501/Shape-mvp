@@ -34,7 +34,10 @@ from project.app.utils.experience_loader import (
 from project.app.utils.experience_progression import (
     load_experience_progression,
 )
-from project.app.utils.experience_lifecycle import complete_experience
+from project.app.utils.experience_lifecycle import (
+    complete_experience,
+    create_experience,
+)
 from project.app.utils.summary_adapter import build_session_summary
 from project.app.utils.summary_validator import validate_summary_schema
 from project.app.utils.session_summaries import build_cognitive_session_summary
@@ -228,6 +231,59 @@ def consent():
     )
 
     return resp
+
+# ================================
+# START NEW EXPERIENCE
+# ================================
+
+@participant_bp.route(
+    "/participant/experience/new",
+    methods=["POST"],
+)
+@limiter.limit("5 per minute")
+def start_new_experience():
+
+    participant_id = request.cookies.get(
+        "participant_id"
+    )
+
+    if not participant_id:
+        return jsonify({
+            "error": "no_participant_cookie"
+        }), 401
+
+    experience = create_experience(
+        participant_id
+    )
+
+    if experience is None:
+        return jsonify({
+            "error": "experience_creation_failed"
+        }), 500
+
+    response = jsonify({
+        "ok": True,
+        "participant_id": participant_id,
+        "experience_id": experience["experience_id"],
+        "next_task_id": TASK_SEQUENCE[0],
+    })
+
+    response.set_cookie(
+        "experience_id",
+        experience["experience_id"],
+        max_age=60 * 60 * 24,
+        httponly=True,
+        samesite="Lax",
+    )
+
+    audit_record(
+        actor=f"participant:{participant_id}",
+        action="start_new_experience",
+        subject=experience["experience_id"],
+        notes="participant_started_new_experience",
+    )
+
+    return response, 201
 
 
 # NOTE:
@@ -695,6 +751,7 @@ def load_task(task_id):
         task=task,
         participant_id=participant_id,
         task_id=task_id,
+        experience_id=experience_id,
         next_task_id=next_task_id,
         is_last_task=is_last_task,
         hp_field=hp_field
