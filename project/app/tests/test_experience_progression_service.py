@@ -198,6 +198,81 @@ def test_task_event_is_not_written_when_session_persistence_fails(
 
     assert event_attempts == []
 
+
+def test_retry_after_event_write_failure_does_not_persist_session_twice(
+    monkeypatch,
+):
+    saved_sessions = []
+    events = []
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.validate_task_progression",
+        lambda experience_id, task_id: {
+            "valid": True,
+            "error": None,
+            "expected_task": task_id,
+            "sequence_version": "1.0",
+        },
+    )
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.save_session_result",
+        lambda session: saved_sessions.append(dict(session)) or dict(session),
+    )
+
+    def append_event(event):
+        if not events:
+            events.append("failed_task_completed_event")
+            raise RuntimeError("event persistence failed")
+        events.append(event)
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service._append_experience_event",
+        append_event,
+    )
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.load_experience_progression",
+        lambda experience_id: {
+            "status": "active",
+            "expected_task": "strategy_under_constraint_v1",
+            "sequence_version": "1.0",
+        },
+    )
+
+    session = {
+        "session_id": "session-retry-1",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "correct": "I",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    }
+                ],
+            }
+        ],
+    }
+
+    first_result = complete_task_progression(
+        experience_id="experience-1",
+        participant_id="participant-1",
+        session=session,
+    )
+    second_result = complete_task_progression(
+        experience_id="experience-1",
+        participant_id="participant-1",
+        session=session,
+    )
+
+    assert first_result["error"] == "progression_event_persistence_failed"
+    assert second_result["ok"] is True
+    assert len(saved_sessions) == 1
+    assert len(events) == 2
+
 def test_progression_transition_uses_experience_lock(
     monkeypatch,
 ):

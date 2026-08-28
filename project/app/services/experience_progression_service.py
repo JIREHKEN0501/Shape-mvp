@@ -10,7 +10,10 @@ from project.app.utils.experience_progression import (
     validate_task_progression,
 )
 from project.app.utils.logging import LOG_DIR
-from project.app.utils.storage import save_session_result
+from project.app.utils.storage import (
+    load_session_by_id,
+    save_session_result,
+)
 from project.app.services.tasks import get_task
 
 EXPERIENCE_EVENTS_LOG = str(
@@ -25,6 +28,7 @@ EXPERIENCE_EVENTS_LOG = str(
 # experiences to proceed independently.
 _LOCKS = {}
 _LOCKS_GUARD = threading.Lock()
+_PENDING_EVENT_SESSIONS = {}
 
 
 def _experience_lock(experience_id: str):
@@ -77,6 +81,21 @@ def _append_experience_event(event: dict) -> None:
             )
             + "\n"
         )
+
+
+def _matches_submission_context(
+    session: dict,
+    experience_id: str,
+    participant_id: str,
+    task_id: str,
+) -> bool:
+    return (
+        isinstance(session, dict)
+        and session.get("experience_id") == experience_id
+        and session.get("participant_id") == participant_id
+        and session.get("task_id") == task_id
+        and session.get("session_complete") is True
+    )
 
 def _validate_task_execution(session: dict) -> tuple[bool, str | None]:
     """
@@ -262,15 +281,38 @@ def complete_task_progression(
         prepared_session["experience_id"] = experience_id
         prepared_session["session_complete"] = True
 
-        try:
-            saved_session = save_session_result(
-                prepared_session
-            )
-        except Exception:
-            return {
-                "ok": False,
-                "error": "session_persistence_failed",
-            }
+        pending_key = (experience_id, session_id)
+        saved_session = _PENDING_EVENT_SESSIONS.get(pending_key)
+
+        if saved_session is None:
+            existing_session = load_session_by_id(session_id)
+
+            if existing_session is not None:
+                if not _matches_submission_context(
+                    existing_session,
+                    experience_id,
+                    participant_id,
+                    task_id,
+                ):
+                    return {
+                        "ok": False,
+                        "error": "session_id_conflict",
+                    }
+
+                saved_session = existing_session
+
+            else:
+                try:
+                    saved_session = save_session_result(
+                        prepared_session
+                    )
+                except Exception:
+                    return {
+                        "ok": False,
+                        "error": "session_persistence_failed",
+                    }
+
+                _PENDING_EVENT_SESSIONS[pending_key] = saved_session
 
         event = {
             "event": "task_completed",
@@ -300,6 +342,8 @@ def complete_task_progression(
                     session_id,
                 ),
             }
+
+        _PENDING_EVENT_SESSIONS.pop(pending_key, None)
 
         state = load_experience_progression(
             experience_id

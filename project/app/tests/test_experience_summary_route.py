@@ -144,6 +144,7 @@ def test_summary_returns_experience_scoped_result(
         "total_questions": 4,
         "objective_questions": 3,
         "decision_observations": 1,
+        "correct_objective_questions": 2,
         "objective_accuracy": 2 / 3,
         "tasks": {},
         "sessions": {},
@@ -179,3 +180,39 @@ def test_summary_returns_experience_scoped_result(
     assert body["has_data"] is True
     assert body["insights"]["has_insights"] is True
     assert body["insights"]["experience_id"] == "experience-1"
+
+
+def test_summary_rejects_invalid_experience_summary_schema(
+    monkeypatch,
+):
+    client = _client(monkeypatch)
+
+    monkeypatch.setattr(
+        participant,
+        "load_experience_by_id",
+        lambda experience_id: {
+            "experience_id": experience_id,
+            "participant_id": "participant-1",
+            "status": "completed",
+        },
+    )
+    monkeypatch.setattr(
+        participant,
+        "generate_experience_summary",
+        lambda experience_id: {
+            "experience_id": experience_id,
+            "has_data": True,
+        },
+    )
+
+    client.set_cookie(
+        "participant_id",
+        "participant-1",
+    )
+
+    response = client.get(
+        "/participant/experience/experience-1/summary"
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["error"] == "invalid_experience_summary"

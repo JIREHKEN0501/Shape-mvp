@@ -388,6 +388,10 @@ def test_participant_submission_persists_completed_session_for_experience_analyt
         "project.app.utils.storage.DATA_LOG",
         str(log_file),
     )
+    monkeypatch.setattr(
+        "project.app.utils.storage.DATA_LOG_PATH",
+        log_file,
+    )
 
     monkeypatch.setattr(
         "project.app.services.experience_progression_service.EXPERIENCE_EVENTS_LOG",

@@ -1,3 +1,7 @@
+import json
+
+import pytest
+
 from project.app.tasks.task_registry import TASK_SEQUENCE
 
 from project.app.utils.experience_progression import (
@@ -144,6 +148,7 @@ def test_progression_advances_after_task_completion(
             "participant_id": "participant-1",
             "experience_id": "experience-1",
             "task_id": "pattern_recognition_v1",
+            "session_complete": True,
         },
     )
 
@@ -213,15 +218,17 @@ def test_progression_is_completed_after_final_task(
         sessions = {
             "session-1": {
                 "session_id": "session-1",
-                "participant_id": "participant-1",
-                "experience_id": "experience-1",
-                "task_id": "pattern_recognition_v1",
+                    "participant_id": "participant-1",
+                    "experience_id": "experience-1",
+                    "task_id": "pattern_recognition_v1",
+                    "session_complete": True,
             },
             "session-2": {
                 "session_id": "session-2",
-                "participant_id": "participant-1",
-                "experience_id": "experience-1",
-                "task_id": "strategy_under_constraint_v1",
+                    "participant_id": "participant-1",
+                    "experience_id": "experience-1",
+                    "task_id": "strategy_under_constraint_v1",
+                    "session_complete": True,
             },
         }
 
@@ -456,6 +463,70 @@ def test_task_completed_requires_existing_session(
     monkeypatch.setattr(
         "project.app.utils.experience_progression.load_session_by_id",
         lambda session_id: None,
+    )
+
+    result = load_experience_progression("experience-1")
+
+    assert result["status"] == "invalid"
+    assert result["error"] == "invalid_progression_history"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("participant_id", "participant-2"),
+        ("experience_id", "experience-2"),
+        ("task_id", "strategy_under_constraint_v1"),
+        ("session_complete", False),
+    ],
+)
+def test_task_completed_requires_matching_completed_session(
+    monkeypatch,
+    tmp_path,
+    field,
+    value,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+    event = {
+        "event": "task_completed",
+        "event_version": "1.0",
+        "experience_id": "experience-1",
+        "participant_id": "participant-1",
+        "sequence_version": "1.0",
+        "task_id": "pattern_recognition_v1",
+        "session_id": "session-1",
+        "ts": "2026-08-14T12:05:00Z",
+    }
+    created = {
+        "event": "experience_created",
+        "event_version": "1.0",
+        "experience_id": "experience-1",
+        "participant_id": "participant-1",
+        "sequence_version": "1.0",
+        "ts": "2026-08-14T12:00:00Z",
+    }
+    events_file.write_text(
+        "\n".join(json.dumps(item) for item in [created, event]) + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    session = {
+        "session_id": "session-1",
+        "participant_id": "participant-1",
+        "experience_id": "experience-1",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+    }
+    session[field] = value
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_session_by_id",
+        lambda session_id: session,
     )
 
     result = load_experience_progression("experience-1")

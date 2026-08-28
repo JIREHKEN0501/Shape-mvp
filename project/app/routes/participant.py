@@ -453,7 +453,9 @@ def submit_result():
 
     # ---- Phase 12A-4: fail-closed summary enforcement ----
     if session_summary is not None:
-        if not validate_summary_schema(session_summary):
+        summary_valid, _ = validate_summary_schema(session_summary)
+
+        if not summary_valid:
             audit_record(
                 actor="system",
                 action="drop_invalid_summary",
@@ -602,6 +604,24 @@ def get_participant_experience_summary(experience_id):
                 "experience_summary_unavailable",
             )
         }), 404
+
+    required_summary_fields = {
+        "experience_id",
+        "has_data",
+        "total_questions",
+        "objective_questions",
+        "decision_observations",
+        "correct_objective_questions",
+        "objective_accuracy",
+        "tasks",
+        "sessions",
+        "attempts",
+    }
+
+    if not required_summary_fields.issubset(summary):
+        return jsonify({
+            "error": "invalid_experience_summary"
+        }), 422
 
     insights = generate_experience_insights(
         summary
@@ -756,4 +776,3 @@ def load_task(task_id):
         is_last_task=is_last_task,
         hp_field=hp_field
     )
-

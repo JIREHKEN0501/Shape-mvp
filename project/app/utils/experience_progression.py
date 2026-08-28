@@ -118,6 +118,15 @@ def load_experience_progression(
             progression_error = "invalid_progression_history"
             break
 
+        if (
+            session.get("participant_id") != event.get("participant_id")
+            or session.get("experience_id") != event.get("experience_id")
+            or session.get("task_id") != task_id
+            or session.get("session_complete") is not True
+        ):
+            progression_error = "invalid_progression_history"
+            break
+
         if task_id in completed_tasks:
             progression_error = "invalid_progression_history"
             break

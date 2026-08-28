@@ -45,10 +45,13 @@ def create_experience(
         "completed_ts": None,
     }
 
-    append_jsonl_secure(
+    persisted = append_jsonl_secure(
         EXPERIENCE_LOG,
         experience_record,
     )
+
+    if not persisted:
+        return None
 
     experience_created_event = {
         "event": "experience_created",
@@ -100,9 +103,12 @@ def complete_experience(
     completed["status"] = "completed"
     completed["completed_ts"] = now_iso()
 
-    append_jsonl_secure(
+    persisted = append_jsonl_secure(
         EXPERIENCE_LOG,
         completed,
     )
+
+    if not persisted:
+        return None
 
     return completed

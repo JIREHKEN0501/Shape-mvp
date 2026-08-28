@@ -34,12 +34,14 @@ def now_iso():
 # ----------------------------------------------------
 
 def append_jsonl_secure(path, obj):
-    """Append JSON safely to a .jsonl file."""
+    """Append JSON safely to a .jsonl file and report success."""
     try:
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+        return True
     except Exception as e:
         print("LOGGING ERROR:", e)
+        return False
 
 # ----------------------------------------------------
 # Audit logger
@@ -84,4 +86,3 @@ def audit_record(action: str,
         }
 
     append_jsonl_secure(AUDIT_LOG, rec)
-
