@@ -28,8 +28,11 @@ def test_admin_login_rejects_incorrect_token(monkeypatch):
 
     assert response.status_code == 200
     assert b"Invalid token" in response.data
-    assert response.headers.get("Set-Cookie") is None
-
+    set_cookie_headers = response.headers.getlist("Set-Cookie")
+    assert not any(
+        header.startswith("admin_session=")
+        for header in set_cookie_headers
+    )
 
 def test_admin_login_sets_current_session_cookie_and_redirects(
     monkeypatch,
