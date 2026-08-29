@@ -2,8 +2,6 @@
 
 import os, json, datetime
 from flask import Blueprint, request, jsonify, render_template
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 from project.app.utils.logging import (
     AUDIT_LOG, CONSENT_LOG, DATA_LOG,
@@ -12,9 +10,9 @@ from project.app.utils.helpers import (
     _count_jsonl_lines, _read_json_file,
 )
 from project.app.routes.security import get_admin_token
+from project.app.extensions.limiter import limiter
 
 system_bp = Blueprint("system", __name__)
-limiter = Limiter(key_func=get_remote_address)
 
 # Base paths (these are set in app.py)
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))

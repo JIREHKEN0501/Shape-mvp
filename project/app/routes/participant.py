@@ -17,8 +17,7 @@ from project.app.utils.metrics import (
     compute_behavioral_metrics,
     compute_cognitive_metrics,
 )
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from project.app.extensions.limiter import limiter
 from project.app.tasks.task_registry import get_next_task
 from project.app.tasks.task_registry import TASK_SEQUENCE
 from project.app.utils.session_loader import load_session_by_id
@@ -53,7 +52,6 @@ from project.app.services.experience_insights import (
 )
 
 participant_bp = Blueprint("participant", __name__)
-limiter = Limiter(key_func=get_remote_address)
 
 
 # ================================

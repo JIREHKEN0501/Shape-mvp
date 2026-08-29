@@ -9,9 +9,6 @@ from flask import (
     make_response, redirect
 )
 
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
 # utils
 from project.app.utils.logging import (
     audit_record,
@@ -36,8 +33,6 @@ from project.app.routes.security import get_admin_token
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
-limiter = Limiter(key_func=get_remote_address)
-
 
 # ==============================
 #   AUTH DECORATOR
