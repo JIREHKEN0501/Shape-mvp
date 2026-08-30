@@ -153,3 +153,41 @@ def export_all_logs():
     )
     return jsonify(rows), 200
 
+# ==============================
+#   EXPORT PARTICIPANT DATA
+# ==============================
+
+@admin_bp.route("/export/<participant_id>", methods=["GET"])
+@admin_required
+def export_participant_admin(participant_id):
+    records = []
+
+    try:
+        for path in (DATA_LOG, CONSENT_LOG, AUDIT_LOG):
+            for obj in _read_jsonl_file(path):
+                if obj.get("participant_id") == participant_id:
+                    records.append({
+                        "file": path,
+                        "record": obj,
+                    })
+
+        audit_record(
+            actor="admin",
+            action="export_participant_data",
+            subject=participant_id,
+            notes=f"matches={len(records)}",
+        )
+
+        return jsonify({
+            "ok": True,
+            "participant_id": participant_id,
+            "matches": len(records),
+            "records": records,
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": "failed to export participant data",
+            "detail": str(e),
+        }), 500
