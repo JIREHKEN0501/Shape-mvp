@@ -36,10 +36,7 @@ def create_app(config_override: dict = None):
 
     # Flask session secret:
     # production/pilot must provide this through the environment.
-    app.config.setdefault(
-        "SECRET_KEY",
-        os.environ.get("SECRET_KEY", "")
-    )
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "")
 
     if config_override:
         app.config.update(config_override)
@@ -54,9 +51,9 @@ def create_app(config_override: dict = None):
     # Session cookie security
     # -------------------------------
 
-    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
-    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
-    app.config.setdefault("SESSION_COOKIE_SECURE", False)
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_SECURE"] = False
 
     # -------------------------------
     # Initialize extensions

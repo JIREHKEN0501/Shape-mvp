@@ -81,3 +81,54 @@ def test_admin_dashboard_accepts_x_admin_token(monkeypatch):
     )
 
     assert response.status_code == 200
+
+def test_create_app_requires_secret_key_outside_testing(monkeypatch):
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+
+    try:
+        create_app()
+    except RuntimeError as exc:
+        assert "SECRET_KEY must be configured through the environment." in str(exc)
+    else:
+        raise AssertionError("create_app() should require SECRET_KEY outside testing")
+
+
+def test_create_app_accepts_secret_key_from_environment(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key")
+
+    app = create_app({
+        "TESTING": True,
+    })
+
+    assert app.config["SECRET_KEY"] == "test-secret-key"
+
+def test_session_cookie_security_defaults_are_configured():
+    app = create_app({
+        "TESTING": True,
+    })
+
+    assert app.config["SESSION_COOKIE_HTTPONLY"] is True
+    assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+    assert app.config["SESSION_COOKIE_SECURE"] is False
+
+
+def test_rate_limiter_uses_configured_storage():
+    app = create_app({
+        "TESTING": True,
+        "RATELIMIT_STORAGE_URI": "memory://",
+    })
+
+    assert app.config["RATELIMIT_STORAGE_URI"] == "memory://"
+
+
+def test_security_headers_are_applied():
+    app = create_app({
+        "TESTING": True,
+    })
+
+    response = app.test_client().get("/")
+
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Referrer-Policy"] == "strict-origin"
+    assert response.headers["Cache-Control"] == "no-store"
