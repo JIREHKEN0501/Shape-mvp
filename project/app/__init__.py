@@ -6,7 +6,10 @@ from flask import Flask
 
 from .extensions import limiter
 from .routes import main as main_bp
-
+from .routes.security import (
+    register_rate_limit_handler,
+    register_honeypot_hooks,
+)
 
 def create_app(config_override: dict = None):
     """
@@ -60,6 +63,8 @@ def create_app(config_override: dict = None):
     # -------------------------------
 
     limiter.init_app(app)
+    register_rate_limit_handler(app)
+    register_honeypot_hooks(app)
 
     # -------------------------------
     # Security headers
