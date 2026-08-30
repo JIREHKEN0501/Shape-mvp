@@ -1,5 +1,7 @@
 # project/app/__init__.py
 
+import os
+
 from flask import Flask
 
 from .extensions import limiter
@@ -11,7 +13,7 @@ def create_app(config_override: dict = None):
     Canonical Flask application factory.
 
     All Flask setup lives here. This is the application construction
-    path used by tests and, after consolidation, deployment.
+    path used by tests and deployment.
     """
 
     app = Flask(__name__)
@@ -26,8 +28,35 @@ def create_app(config_override: dict = None):
     app.config.setdefault("LIMITER_STORAGE_URI", "memory://")
     app.config.setdefault("DEFAULT_RATE_LIMITS", ["120 per minute"])
 
+    # Flask session secret:
+    # production/pilot must provide this through the environment.
+    app.config.setdefault(
+        "SECRET_KEY",
+        os.environ.get("SECRET_KEY", "")
+    )
+
     if config_override:
         app.config.update(config_override)
+
+    # Never allow a non-testing deployment to run without a session secret.
+    if not app.config["SECRET_KEY"] and not app.config.get("TESTING"):
+        raise RuntimeError(
+            "SECRET_KEY must be configured through the environment."
+        )
+
+    # -------------------------------
+    # Session cookie security
+    # -------------------------------
+
+    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
+    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
+    app.config.setdefault("SESSION_COOKIE_SECURE", False)
+
+    # -------------------------------
+    # Initialize extensions
+    # -------------------------------
+
+    limiter.init_app(app)
 
     # -------------------------------
     # Security headers
@@ -42,44 +71,19 @@ def create_app(config_override: dict = None):
         return response
 
     # -------------------------------
-    # Initialize extensions
-    # -------------------------------
-
-    limiter.init_app(app)
-
-    # -------------------------------
-    # Register security hooks
-    # -------------------------------
-
-    from project.app.routes.security import (
-        register_rate_limit_handler,
-        register_host_guard,
-        register_honeypot_hooks,
-    )
-
-    register_rate_limit_handler(app)
-    register_host_guard(app)
-    register_honeypot_hooks(app)
-
-    # -------------------------------
     # Register blueprints
     # -------------------------------
 
     app.register_blueprint(main_bp)
 
-    from project.app.routes.security import security_bp
-    app.register_blueprint(security_bp)
-
-    from project.app.routes.system import system_bp
-    app.register_blueprint(system_bp)
-
     from project.app.routes.admin import admin_bp
-    app.register_blueprint(admin_bp)
-
     from project.app.routes.participant import participant_bp
-    app.register_blueprint(participant_bp)
+    from project.app.routes.security import security_bp
+    from project.app.routes.system import system_bp
 
-    from project.app.routes.submit_result import submit_result_bp
-    app.register_blueprint(submit_result_bp)
+    app.register_blueprint(security_bp)
+    app.register_blueprint(participant_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(system_bp)
 
     return app

@@ -432,7 +432,7 @@ def test_participant_submission_persists_completed_session_for_experience_analyt
         lambda loaded_experience: True,
     )
 
-    app = create_app()
+    app = create_app({"TESTING": True})
     app.config["TESTING"] = True
 
     client = app.test_client()
