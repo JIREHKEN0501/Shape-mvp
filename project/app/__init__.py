@@ -25,7 +25,10 @@ def create_app(config_override: dict = None):
     app.config.setdefault("LOG_MAX_BYTES", 512 * 1024)
     app.config.setdefault("LOG_BACKUPS", 5)
     app.config.setdefault("HONEY_POT_FIELD", "hp_1aa74582")
-    app.config.setdefault("LIMITER_STORAGE_URI", "memory://")
+    app.config.setdefault(
+        "RATELIMIT_STORAGE_URI",
+        os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+    )
     app.config.setdefault("DEFAULT_RATE_LIMITS", ["120 per minute"])
 
     # Flask session secret:
