@@ -53,7 +53,9 @@ def create_app(config_override: dict = None):
 
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-    app.config["SESSION_COOKIE_SECURE"] = False
+    app.config["SESSION_COOKIE_SECURE"] = (
+        os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
+    )
 
     # -------------------------------
     # Initialize extensions
