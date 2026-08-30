@@ -75,6 +75,10 @@ def create_app(config_override: dict = None):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin"
         response.headers["Cache-Control"] = "no-store"
+        if os.environ.get("ENABLE_HSTS", "false").lower() == "true":
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
         return response
 
     # -------------------------------
