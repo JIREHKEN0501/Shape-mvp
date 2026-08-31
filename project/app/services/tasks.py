@@ -518,13 +518,10 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
     # 1) Load participant history from logs.
 
     events = _load_participant_events(participant_id)
-    # Extract previously seen task IDs
-    seen_ids = {
-        e.get("task_id")
-        for e in events
-        if e.get("event_type") == "task_attempt" and e.get("task_id")
-    }
     selection_summary = _summarise_history(events)
+
+    # Use the canonical history summary for task exclusion.
+    seen_ids = selection_summary["attempted_task_ids"]
 
     participant_summary = generate_participant_summary(
         participant_id

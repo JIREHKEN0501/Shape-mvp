@@ -26,13 +26,18 @@ def test_next_task_excludes_previously_attempted_tasks(monkeypatch):
         "_load_participant_events",
         lambda participant_id: [
             {
-                "event_type": "task_attempt",
+                "event_type": "submit_result",
+                "participant_id": participant_id,
                 "task_id": "task_1",
-                "correct": True,
+                "metrics": {
+                    "task_id": "task_1",
+                    "category": "attention",
+                    "difficulty": 1,
+                    "is_correct": True,
+                },
             }
         ],
     )
-
     monkeypatch.setattr(
         tasks,
         "_build_catalog_index",
