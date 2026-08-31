@@ -269,14 +269,13 @@
       retryCount += 1;
       try {
         const payload = {
-          participant_id: participantId,
           task_id: currentTask.task_id || currentTask.id,
           answer: answer,
           latency_ms: taskStartTime ? Date.now() - taskStartTime : null,
           retries: retryCount,
           hesitation: hesitationCount
         };
-        const resp = await fetch("/submit_result", {
+        const resp = await fetch("/participant/submit_result", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
