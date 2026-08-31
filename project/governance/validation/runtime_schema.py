@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -46,7 +46,6 @@ class LegitimacyState:
     rehabilitation_active: bool = False
 
 
-@dataclass
 @dataclass
 class TemporalGovernanceState:
     """
