@@ -91,10 +91,12 @@ def create_app(config_override: dict = None):
     from project.app.routes.participant import participant_bp
     from project.app.routes.security import security_bp
     from project.app.routes.system import system_bp
+    from project.app.routes.submit_result import submit_result_bp
 
     app.register_blueprint(security_bp)
     app.register_blueprint(participant_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(system_bp)
+    app.register_blueprint(submit_result_bp)
 
     return app

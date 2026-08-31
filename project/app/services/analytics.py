@@ -1076,7 +1076,7 @@ def generate_participant_summary(participant_id: str) -> Dict[str, Any]:
             "total": 0
         })
 
-        latency = a.get("response_time_s", 0) * 1000  # convert to ms
+        latency = (a.get("response_time_s") or 0) * 1000  # convert to ms
         correct = a.get("is_correct", False)
 
         if latency < 6000 and not correct:
