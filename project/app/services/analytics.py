@@ -374,14 +374,26 @@ def _augment_attempts_with_metrics_and_time(
             category = metrics.get("category")
             difficulty = metrics.get("difficulty")
 
-        # compute response time from nearest session_start
-        sess = _match_session_for_attempt(att, sessions)
+        # Prefer the actual per-task latency recorded at submission.
+        # Fall back to session elapsed time for legacy attempts without latency.
+        latency_ms = pre.get("latency_ms")
         response_time_s = None
-        if sess is not None:
-            ts_attempt = att.get("ts")
-            ts_sess = sess.get("ts")
-            if isinstance(ts_attempt, (int, float)) and isinstance(ts_sess, (int, float)):
-                response_time_s = max(0.0, float(ts_attempt) - float(ts_sess))
+
+        if isinstance(latency_ms, (int, float)):
+            response_time_s = max(0.0, float(latency_ms) / 1000.0)
+        else:
+            sess = _match_session_for_attempt(att, sessions)
+            if sess is not None:
+                ts_attempt = att.get("ts")
+                ts_sess = sess.get("ts")
+                if (
+                    isinstance(ts_attempt, (int, float))
+                    and isinstance(ts_sess, (int, float))
+                ):
+                    response_time_s = max(
+                        0.0,
+                        float(ts_attempt) - float(ts_sess),
+                    )
 
         hesitation = pre.get(
             "hesitation"
