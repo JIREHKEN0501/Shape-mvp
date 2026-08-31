@@ -3,6 +3,7 @@
 import os
 import json
 import datetime
+import secrets
 from functools import wraps
 from flask import (
     Blueprint, request, jsonify, render_template,
@@ -31,8 +32,43 @@ from project.app.utils.metrics import (
 # admin token provider
 from project.app.routes.security import get_admin_token
 
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+ADMIN_SESSION_MAX_AGE = 1800
+ADMIN_SESSION_SALT = "shape-admin-session-v1"
+
+
+def _admin_session_serializer():
+    from flask import current_app
+
+    return URLSafeTimedSerializer(
+        current_app.config["SECRET_KEY"],
+        salt=ADMIN_SESSION_SALT,
+    )
+
+
+def _create_admin_session():
+    return _admin_session_serializer().dumps({
+        "admin": True,
+        "nonce": secrets.token_urlsafe(24),
+    })
+
+
+def _verify_admin_session(value):
+    if not value:
+        return False
+
+    try:
+        data = _admin_session_serializer().loads(
+            value,
+            max_age=ADMIN_SESSION_MAX_AGE,
+        )
+    except (BadSignature, SignatureExpired):
+        return False
+
+    return data.get("admin") is True
 
 # ==============================
 #   AUTH DECORATOR
@@ -51,20 +87,27 @@ def admin_required(f):
             provided = (
                 request.headers.get("X-ADMIN-TOKEN", "").strip()
                 or auth.strip()
-                or request.cookies.get("admin_session", "").strip()
             )
 
-        if provided != real:
-            audit_record(
-                action="admin_access_denied",
-                actor="unknown",
-                subject=request.path,
-                status="denied",
-                extra={"ip": request.remote_addr}
-            )
-            return jsonify({"error": "Unauthorized"}), 401
+        if provided == real:
+            return f(*args, **kwargs)
 
-        return f(*args, **kwargs)
+        admin_session = request.cookies.get(
+            "admin_session",
+            "",
+        ).strip()
+
+        if _verify_admin_session(admin_session):
+            return f(*args, **kwargs)
+
+        audit_record(
+            action="admin_access_denied",
+            actor="unknown",
+            subject=request.path,
+            status="denied",
+            extra={"ip": request.remote_addr}
+        )
+        return jsonify({"error": "Unauthorized"}), 401
     return decorated
 
 
@@ -86,15 +129,20 @@ def admin_login():
         return render_template("admin_login.html", error="Invalid token")
 
     resp = make_response(redirect("/admin/dashboard"))
+
     resp.set_cookie(
         "admin_session",
-        token_submitted,
+        _create_admin_session(),
         httponly=True,
         samesite="Lax",
-        max_age=3600,
+        max_age=ADMIN_SESSION_MAX_AGE,
+        secure=(
+            os.environ.get("SESSION_COOKIE_SECURE", "false").lower()
+            == "true"
+        ),
     )
-    return resp
 
+    return resp
 
 # ==============================
 #   DASHBOARD

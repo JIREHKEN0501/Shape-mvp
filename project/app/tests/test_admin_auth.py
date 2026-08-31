@@ -34,7 +34,7 @@ def test_admin_login_rejects_incorrect_token(monkeypatch):
         for header in set_cookie_headers
     )
 
-def test_admin_login_sets_current_session_cookie_and_redirects(
+def test_admin_login_sets_opaque_expiring_session_cookie_and_redirects(
     monkeypatch,
 ):
     client = _client(monkeypatch)
@@ -48,15 +48,16 @@ def test_admin_login_sets_current_session_cookie_and_redirects(
     assert response.headers["Location"] == "/admin/dashboard"
 
     cookie = response.headers["Set-Cookie"]
-    assert f"admin_session={ADMIN_TOKEN}" in cookie
+
+    assert "admin_session=" in cookie
+    assert f"admin_session={ADMIN_TOKEN}" not in cookie
     assert "HttpOnly" in cookie
     assert "SameSite=Lax" in cookie
-    assert "Max-Age=3600" in cookie
+    assert "Max-Age=1800" in cookie
 
-    # The current contract accepts the login cookie for dashboard access.
+    # The opaque browser session should authenticate the dashboard.
     dashboard = client.get("/admin/dashboard")
     assert dashboard.status_code == 200
-
 
 def test_admin_dashboard_requires_credentials(monkeypatch):
     response = _client(monkeypatch).get("/admin/dashboard")
