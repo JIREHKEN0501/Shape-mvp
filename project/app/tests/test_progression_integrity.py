@@ -14,23 +14,30 @@ def make_active_experience():
 
 
 def make_cognitive_session(task_id):
+    if task_id == "pattern_recognition_v1":
+        question = {
+            "question_id": "pr_q1",
+            "correct": "I",
+            "user_answer": "I",
+            "time_taken_seconds": 3.0,
+        }
+    else:
+        question = {
+            "question_id": "suc_q1",
+            "correct": None,
+            "user_answer": "A",
+            "time_taken_seconds": 3.0,
+        }
+
     return {
         "task_id": task_id,
         "modules": [
             {
                 "module_name": "test-module",
-                "questions": [
-                    {
-                        "question_id": "q1",
-                        "correct": "A",
-                        "user_answer": "A",
-                        "time_taken_seconds": 3.0,
-                    }
-                ],
+                "questions": [question],
             }
         ],
     }
-
 
 def test_second_task_is_rejected_before_first_task(
     monkeypatch,

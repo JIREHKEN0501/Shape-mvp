@@ -122,6 +122,11 @@ def _extract_experience_task_attempts(
         session_id
         session_complete
 
+    The participant submission intentionally does not contain the
+    server-owned correct answer. Objective answer keys are resolved
+    from the canonical task definition here. Questions whose canonical
+    definition has correct=None remain decision observations.
+
     This adapter normalizes those records into one attempt per question
     while preserving the experience/session boundary.
     """
@@ -141,22 +146,57 @@ def _extract_experience_task_attempts(
             continue
 
         modules = record.get("modules")
-
         if not isinstance(modules, list):
             continue
+
+        # Resolve the canonical task server-side. The answer key is
+        # never supplied by the participant.
+        from project.app.services.tasks import get_task
+
+        canonical_task = get_task(
+            task_id,
+            include_answer=True,
+        )
+
+        canonical_questions = {}
+        if isinstance(canonical_task, dict):
+            for canonical_module in canonical_task.get("modules", []):
+                if not isinstance(canonical_module, dict):
+                    continue
+
+                for canonical_question in canonical_module.get(
+                    "questions",
+                    [],
+                ):
+                    if not isinstance(canonical_question, dict):
+                        continue
+
+                    question_id = canonical_question.get("question_id")
+                    if question_id:
+                        canonical_questions[question_id] = (
+                            canonical_question
+                        )
 
         for module in modules:
             if not isinstance(module, dict):
                 continue
 
             questions = module.get("questions")
-
             if not isinstance(questions, list):
                 continue
 
             for question in questions:
                 if not isinstance(question, dict):
                     continue
+
+                question_id = question.get("question_id")
+                canonical_question = canonical_questions.get(
+                    question_id
+                )
+
+                correct = None
+                if canonical_question is not None:
+                    correct = canonical_question.get("correct")
 
                 attempts.append(
                     {
@@ -166,9 +206,9 @@ def _extract_experience_task_attempts(
                         "session_id": record.get("session_id"),
                         "task_id": task_id,
                         "ts": record.get("saved_ts") or record.get("ts"),
-                        "question_id": question.get("question_id"),
+                        "question_id": question_id,
                         "user_answer": question.get("user_answer"),
-                        "correct": question.get("correct"),
+                        "correct": correct,
                         "time_taken_seconds": question.get(
                             "time_taken_seconds"
                         ),

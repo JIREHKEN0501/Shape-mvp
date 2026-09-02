@@ -23,6 +23,7 @@ from project.app.services.tasks import (
     get_next_task_for_participant,
 )
 from project.app.core.scoring import score_task_attempt
+from project.app.utils.experience_progression import load_experience_progression
 
 
 
@@ -216,36 +217,103 @@ def task_detail(task_id):
 @main.route("/tasks/next/<participant_id>")
 def tasks_next(participant_id):
     """
-    Adaptive next-task endpoint.
+    Return the authoritative next task for the participant's
+    active experience.
 
-    Uses the participant's history (from logs/data_log.jsonl) plus
-    the current TASK_CATALOG to pick a suitable next task.
+    Canonical experience progression takes precedence over the
+    general adaptive task selector. The adaptive selector remains
+    available when no active experience progression exists.
     """
-
     try:
+        cookie_participant_id = request.cookies.get("participant_id")
+        experience_id = request.cookies.get("experience_id")
+
+        # Do not allow a participant to request another participant's
+        # canonical experience progression.
+        if (
+            cookie_participant_id
+            and cookie_participant_id != participant_id
+        ):
+            return jsonify({
+                "ok": False,
+                "error": "participant_mismatch",
+            }), 403
+
+        # ---------------------------------------------------------
+        # Canonical experience progression
+        # ---------------------------------------------------------
+        if experience_id:
+            progression = load_experience_progression(
+                experience_id
+            )
+
+            if progression is not None:
+                # The progression history itself is authoritative.
+                if progression.get("participant_id") != participant_id:
+                    return jsonify({
+                        "ok": False,
+                        "error": "experience_not_owned",
+                    }), 403
+
+                if progression.get("status") == "invalid":
+                    return jsonify({
+                        "ok": False,
+                        "error": "invalid_progression_history",
+                    }), 409
+
+                expected_task_id = progression.get("expected_task")
+
+                # All canonical tasks have been completed.
+                if expected_task_id is None:
+                    return jsonify({
+                        "ok": False,
+                        "message": "Session complete",
+                        "experience_complete": True,
+                    }), 200
+
+                task = get_task(
+                    expected_task_id,
+                    include_answer=False,
+                )
+
+                if task is None:
+                    return jsonify({
+                        "ok": False,
+                        "error": "expected_task_not_found",
+                        "task_id": expected_task_id,
+                    }), 500
+
+                return jsonify({
+                    "ok": True,
+                    "task": task,
+                    "experience_id": experience_id,
+                    "canonical_progression": True,
+                }), 200
+
+        # ---------------------------------------------------------
+        # General adaptive fallback
+        # ---------------------------------------------------------
         task = get_next_task_for_participant(participant_id)
 
-        # 🚨 If no task available (end of session), return cleanly
         if not task.get("ok", True):
             return jsonify({
                 "ok": False,
-                "message": task.get("message", "No tasks available")
+                "message": task.get(
+                    "message",
+                    "No tasks available"
+                ),
             })
 
         return jsonify({
             "ok": True,
-            "task": task
+            "task": task,
         })
 
     except Exception:
-        import traceback
-        traceback.print_exc()
-
         return jsonify({
             "ok": False,
-            "error": "Internal server error"
+            "error": "internal_error",
         }), 500
-
 
 @main.route("/metrics/summary/<participant_id>", methods=["GET"])
 def metrics_summary(participant_id):

@@ -78,4 +78,4 @@ def test_tasks_next_returns_500_on_engine_error(monkeypatch):
     data = response.get_json()
 
     assert data["ok"] is False
-    assert data["error"] == "Internal server error"
+    assert data["error"] == "internal_error"

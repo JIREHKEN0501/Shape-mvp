@@ -101,7 +101,7 @@ def validate_cognitive_session(s: dict):
         for qi, q in enumerate(qs):
             if not isinstance(q, dict):
                 return False, f"q[{qi}] in module[{mi}] must be object"
-            for k in ["question_id", "correct", "time_taken_seconds"]:
+            for k in ["question_id", "user_answer", "time_taken_seconds"]:
                 if k not in q:
                     return False, f"q[{qi}] in module[{mi}] missing '{k}'"
 

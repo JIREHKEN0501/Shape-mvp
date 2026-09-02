@@ -122,6 +122,10 @@
   <script>
     let participantId = null;
     let currentTask = null;
+    let currentQuestions = [];
+    let currentQuestionIndex = 0;
+    let currentAnswers = [];
+
     let taskStartTime = null;
     let retryCount = 0;
     let lastAnswer = null;
@@ -140,6 +144,10 @@
 
     function renderTask(task) {
       currentTask = task;
+      currentQuestions = [];
+      currentQuestionIndex = 0;
+      currentAnswers = [];
+
       const qEl = document.getElementById("question");
       const metaEl = document.getElementById("meta");
       const optionsEl = document.getElementById("options");
@@ -151,30 +159,71 @@
         return;
       }
 
-      qEl.textContent = task.instruction || "(no instruction)";
-      const bits = [];
-      if (task.category) bits.push(`<span class="pill">${task.category}</span>`);
-      if (task.difficulty != null) bits.push(`<span class="pill">Difficulty ${task.difficulty}</span>`);
-      metaEl.innerHTML = bits.join(" ");
+      // Flatten all questions from all modules in this task.
+      (task.modules || []).forEach(module => {
+        (module.questions || []).forEach(question => {
+          currentQuestions.push(question);
+        });
+      });
 
-      optionsEl.innerHTML = "";
-      const opts = task.options || [];
-      if (opts.length === 0) {
-        optionsEl.textContent = "(This task has no options configured.)";
+      if (currentQuestions.length === 0) {
+        qEl.textContent = "This task has no questions configured.";
+        metaEl.textContent = "";
+        optionsEl.innerHTML = "";
         return;
       }
 
-      opts.forEach(opt => {
+      renderCurrentQuestion();
+    }
+
+    function renderCurrentQuestion() {
+      const qEl = document.getElementById("question");
+      const metaEl = document.getElementById("meta");
+      const optionsEl = document.getElementById("options");
+
+      const question = currentQuestions[currentQuestionIndex];
+
+      if (!question) {
+        qEl.textContent = "Task complete.";
+        metaEl.textContent = "";
+        optionsEl.innerHTML = "";
+        return;
+      }
+
+      qEl.textContent = question.prompt || "(no question prompt)";
+
+      metaEl.innerHTML = `
+        <span class="pill">
+          Question ${currentQuestionIndex + 1} of ${currentQuestions.length}
+        </span>
+      `;
+
+      optionsEl.innerHTML = "";
+
+      const options = question.options || [];
+
+      options.forEach(option => {
         const btn = document.createElement("button");
+
         btn.className = "option";
-        btn.textContent = opt;
+        btn.textContent = option;
+
         btn.onmouseover = () => {
-          if (lastAnswer !== null && lastAnswer !== opt) { hesitationCount += 1; }
-          lastAnswer = opt;
+          if (lastAnswer !== null && lastAnswer !== option) {
+            hesitationCount += 1;
+          }
+          lastAnswer = option;
         };
-        btn.onclick = () => submitAnswer(opt);
+
+        btn.onclick = () => submitAnswer(option);
+
         optionsEl.appendChild(btn);
       });
+
+      taskStartTime = Date.now();
+      lastAnswer = null;
+      hesitationCount = 0;
+      retryCount = 0;
     }
 
     function setOptionsDisabled(disabled) {
@@ -186,8 +235,9 @@
     async function startSession() {
       setStatus("Starting session…");
       setFeedback("", "");
+
       try {
-        const resp = await fetch("/start_session", {
+        const resp = await fetch("/consent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -195,26 +245,28 @@
             consent_version: "v1"
           })
         });
+
         const data = await resp.json();
-        if (!data.ok) {
+
+        if (!resp.ok) {
           setStatus("Failed to start session.");
-          console.error("start_session error", data);
+          console.error("consent error", data);
           return;
         }
+
         participantId = data.participant_id;
 
-        // Show ID clearly
         document.getElementById("pid").textContent = participantId;
 
-        // Keep status clean
         setStatus("Session started. Answer the questions.");
+
         await loadNextTask();
+
       } catch (err) {
         console.error(err);
         setStatus("Error starting session.");
       }
     }
-
     async function loadNextTask() {
       if (!participantId) {
         setStatus("No participant ID; cannot load task.");
@@ -263,36 +315,81 @@
 
     async function submitAnswer(answer) {
       if (busy || !currentTask || !participantId) return;
+
       busy = true;
       setOptionsDisabled(true);
-      setFeedback("Submitting answer…", "");
-      retryCount += 1;
+
+      const question = currentQuestions[currentQuestionIndex];
+
+      currentAnswers.push({
+        question_id: question.question_id,
+        prompt: question.prompt,
+        user_answer: answer,
+        time_taken_seconds: taskStartTime
+          ? (Date.now() - taskStartTime) / 1000
+          : null,
+        retries: retryCount,
+        hesitation: hesitationCount
+      });
+
+      // More questions remain in this task.
+      if (currentQuestionIndex < currentQuestions.length - 1) {
+        setFeedback("Answer recorded.", "");
+
+        setTimeout(() => {
+          currentQuestionIndex += 1;
+          renderCurrentQuestion();
+          setOptionsDisabled(false);
+          busy = false;
+        }, 500);
+
+        return;
+      }
+
+      // All questions in the task have now been answered.
+      setFeedback("Recording task…", "");
+
       try {
         const payload = {
           task_id: currentTask.task_id || currentTask.id,
-          answer: answer,
-          latency_ms: taskStartTime ? Date.now() - taskStartTime : null,
-          retries: retryCount,
-          hesitation: hesitationCount
+          modules: [
+            {
+              module_name: currentTask.modules?.[0]?.module_name || "default",
+              questions: currentAnswers
+            }
+          ],
+          session_complete: true
         };
+
         const resp = await fetch("/participant/submit_result", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json"
+          },
           body: JSON.stringify(payload)
         });
+
         const data = await resp.json();
-        const metrics = data.metrics || {};
-        if (metrics.is_correct === true) {
-          setFeedback("Correct ✔", "correct");
-        } else if (metrics.is_correct === false) {
-          setFeedback("Not quite. Let’s try another one.", "wrong");
-        } else {
-          setFeedback("Answer recorded.", "");
+
+        if (!resp.ok) {
+          console.error("submit_result error", data);
+
+          setFeedback(
+            data.error
+              ? `Submission failed: ${data.error}`
+              : "Submission failed.",
+            "wrong"
+          );
+
+          return;
         }
-        // brief pause then move to next task
+
+        setFeedback("Answer recorded.", "");
+
         setTimeout(() => {
           loadNextTask();
-        }, 900);
+        }, 700);
+
       } catch (err) {
         console.error(err);
         setFeedback("Error submitting answer.", "wrong");

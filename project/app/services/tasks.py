@@ -147,16 +147,100 @@ def list_tasks(include_answer: bool = False) -> List[Dict[str, Any]]:
     return tasks
 
 
-def get_task(task_id: str, include_answer: bool = True) -> Optional[Dict[str, Any]]:
+def _sanitize_canonical_task(
+    task: Dict[str, Any],
+    include_answer: bool = False,
+) -> Dict[str, Any]:
+    """Return a canonical experience task safe for the client."""
+    data = dict(task)
+
+    if include_answer:
+        return data
+
+    sanitized_modules = []
+
+    for module in data.get("modules", []):
+        if not isinstance(module, dict):
+            continue
+
+        sanitized_module = dict(module)
+        sanitized_questions = []
+
+        for question in module.get("questions", []):
+            if not isinstance(question, dict):
+                continue
+
+            sanitized_question = dict(question)
+            sanitized_question.pop("correct", None)
+            sanitized_questions.append(sanitized_question)
+
+        sanitized_module["questions"] = sanitized_questions
+        sanitized_modules.append(sanitized_module)
+
+    data["modules"] = sanitized_modules
+    return data
+
+
+def get_task(
+    task_id: str,
+    include_answer: bool = True,
+) -> Optional[Dict[str, Any]]:
     """
     Return a single task dict by id.
-    Returns None if task_id is unknown.
+
+    First checks the general adaptive task catalog.
+    If the task is not there, checks the canonical
+    experience-task definitions under project/app/tasks/.
     """
     _load_tasks_from_json()
+
+    # ---------------------------------------------------------
+    # 1. General adaptive task catalog
+    # ---------------------------------------------------------
     task = _TASK_CATALOG.get(task_id)
-    if not task:
+
+    if task:
+        return _sanitize_task(
+            task,
+            include_answer=include_answer,
+        )
+
+    # ---------------------------------------------------------
+    # 2. Canonical experience task definitions
+    # ---------------------------------------------------------
+    canonical_task_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "tasks",
+            f"{task_id}.json",
+        )
+    )
+
+    try:
+        with open(
+            canonical_task_path,
+            "r",
+            encoding="utf-8",
+        ) as f:
+            canonical_task = json.load(f)
+    except (
+        FileNotFoundError,
+        json.JSONDecodeError,
+        OSError,
+    ):
         return None
-    return _sanitize_task(task, include_answer=include_answer)
+
+    if not isinstance(canonical_task, dict):
+        return None
+
+    if canonical_task.get("task_id") != task_id:
+        return None
+
+    return _sanitize_canonical_task(
+        canonical_task,
+        include_answer=include_answer,
+    )
 
 # ---------------------------------------------------------------------------
 # Adaptive next-task engine
