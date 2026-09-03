@@ -758,6 +758,7 @@ def test_participant_progression_runs_end_to_end(
 
     assert len(completion_events) == 1
 
+
 def test_task_loader_uses_client_safe_canonical_task(
     monkeypatch,
 ):
