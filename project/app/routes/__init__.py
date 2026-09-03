@@ -209,7 +209,10 @@ def task_detail(task_id):
     """
     Return a single task by id, or 404 if not found.
     """
-    task = get_task(task_id)
+    task = get_task(
+        task_id,
+        include_answer=False,
+    )
     if not task:
         return jsonify({"ok": False, "error": "task_not_found"}), 404
     return jsonify({"ok": True, "task": task}), 200

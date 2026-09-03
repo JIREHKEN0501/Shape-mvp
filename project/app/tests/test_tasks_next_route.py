@@ -79,3 +79,25 @@ def test_tasks_next_returns_500_on_engine_error(monkeypatch):
 
     assert data["ok"] is False
     assert data["error"] == "internal_error"
+
+def test_task_detail_returns_client_safe_task():
+    app = create_app({"TESTING": True})
+
+    with app.test_client() as client:
+        response = client.get(
+            "/tasks/strategy_under_constraint_v1"
+        )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["ok"] is True
+    task = data["task"]
+
+    assert task["task_id"] == "strategy_under_constraint_v1"
+    assert "decision_code_mapping" not in task
+
+    for module in task["modules"]:
+        for question in module["questions"]:
+            assert "correct" not in question

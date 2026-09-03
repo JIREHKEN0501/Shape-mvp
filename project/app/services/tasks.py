@@ -147,15 +147,33 @@ def list_tasks(include_answer: bool = False) -> List[Dict[str, Any]]:
     return tasks
 
 
+# Canonical fields that must never be exposed to the participant client.
+#
+# These fields remain available through get_task(..., include_answer=True)
+# for trusted server-side consumers.
+_CLIENT_HIDDEN_CANONICAL_FIELDS = {
+    "correct",               # question-level answer key
+    "decision_code_mapping", # top-level internal decision semantics
+}
+
+
 def _sanitize_canonical_task(
     task: Dict[str, Any],
     include_answer: bool = False,
 ) -> Dict[str, Any]:
-    """Return a canonical experience task safe for the client."""
+    """Return a canonical experience task safe for the client.
+
+    When include_answer is False, remove every field explicitly listed in
+    _CLIENT_HIDDEN_CANONICAL_FIELDS at its defined schema level.
+    """
+
     data = dict(task)
 
     if include_answer:
         return data
+
+    if "decision_code_mapping" in _CLIENT_HIDDEN_CANONICAL_FIELDS:
+        data.pop("decision_code_mapping", None)
 
     sanitized_modules = []
 
@@ -171,7 +189,8 @@ def _sanitize_canonical_task(
                 continue
 
             sanitized_question = dict(question)
-            sanitized_question.pop("correct", None)
+            if "correct" in _CLIENT_HIDDEN_CANONICAL_FIELDS:
+                sanitized_question.pop("correct", None)
             sanitized_questions.append(sanitized_question)
 
         sanitized_module["questions"] = sanitized_questions

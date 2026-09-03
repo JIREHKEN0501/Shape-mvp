@@ -359,3 +359,48 @@ def test_runtime_zero_shift_freezes_candidate_pool(monkeypatch):
     # difficulty of 2.
     assert result["meta"]["difficulty"]["chosen"] == 2
     assert result["difficulty"] == 2
+
+def test_canonical_task_client_boundary_strips_internal_fields():
+    task = {
+        "task_id": "strategy_under_constraint_v1",
+        "title": "Decision Strategy Task",
+        "description": "Test task",
+        "modules": [
+            {
+                "module_name": "allocation_round_1",
+                "questions": [
+                    {
+                        "question_id": "suc_q1",
+                        "prompt": "Test question",
+                        "options": ["A", "B", "C"],
+                        "correct": None,
+                    }
+                ],
+            }
+        ],
+        "decision_code_mapping": {
+            "suc_q1": {
+                "A": "internal_a",
+                "B": "internal_b",
+                "C": "internal_c",
+            }
+        },
+    }
+
+    client_task = tasks._sanitize_canonical_task(
+        task,
+        include_answer=False,
+    )
+
+    assert "decision_code_mapping" not in client_task
+    assert "correct" not in client_task["modules"][0]["questions"][0]
+
+    server_task = tasks._sanitize_canonical_task(
+        task,
+        include_answer=True,
+    )
+
+    assert server_task["decision_code_mapping"] == (
+        task["decision_code_mapping"]
+    )
+    assert server_task["modules"][0]["questions"][0]["correct"] is None

@@ -4,8 +4,7 @@ from project.app.utils.session_summaries import (
     build_cognitive_session_summary,
 )
 from project.app.utils.summary_validator import validate_summary_schema
-import json
-from pathlib import Path
+from project.app.services.tasks import get_task
 
 SUMMARY_VERSION = "1.0"
 # IMPORTANT:
@@ -26,20 +25,12 @@ def build_session_summary(session: dict) -> dict | None:
 
     # Strategy tasks
     if task_id == "strategy_under_constraint_v1":
-        task_definition_path = (
-            Path(__file__).resolve().parents[1]
-            / "tasks"
-            / f"{task_id}.json"
+        task_definition = get_task(
+            task_id,
+            include_answer=True,
         )
 
-        try:
-            with open(
-                task_definition_path,
-                "r",
-                encoding="utf-8",
-            ) as f:
-                task_definition = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+        if task_definition is None:
             return None
 
         decision_code_mapping = task_definition.get(

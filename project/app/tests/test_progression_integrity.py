@@ -757,3 +757,79 @@ def test_participant_progression_runs_end_to_end(
     ]
 
     assert len(completion_events) == 1
+
+def test_task_loader_uses_client_safe_canonical_task(
+    monkeypatch,
+):
+    app = create_app({
+        "TESTING": True,
+        "WTF_CSRF_ENABLED": False,
+    })
+
+    experience = make_active_experience()
+
+    monkeypatch.setattr(
+        participant_routes,
+        "load_experience_by_id",
+        lambda experience_id: experience,
+    )
+
+    monkeypatch.setattr(
+        participant_routes,
+        "load_experience_progression",
+        lambda experience_id: {
+            "experience_id": "experience-1",
+            "participant_id": "participant-1",
+            "status": "active",
+            "completed_tasks": [],
+            "expected_task": "pattern_recognition_v1",
+        },
+    )
+
+    calls = []
+
+    def fake_get_task(task_id, include_answer=True):
+        calls.append((task_id, include_answer))
+        return {
+            "task_id": task_id,
+            "title": "Boundary Test Task",
+            "description": "Client boundary test",
+            "modules": [
+                {
+                    "module_name": "test_module",
+                    "questions": [
+                        {
+                            "question_id": "boundary_q1",
+                            "prompt": "Boundary question",
+                            "options": ["A", "B"],
+                        }
+                    ],
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        participant_routes,
+        "get_task",
+        fake_get_task,
+    )
+
+    with app.test_client() as client:
+        client.set_cookie(
+            "participant_id",
+            "participant-1",
+        )
+        client.set_cookie(
+            "experience_id",
+            "experience-1",
+        )
+
+        response = client.get(
+            "/task/pattern_recognition_v1"
+        )
+
+    assert response.status_code == 200
+    assert calls == [
+        ("pattern_recognition_v1", False)
+    ]
+    assert b"Boundary Test Task" in response.data

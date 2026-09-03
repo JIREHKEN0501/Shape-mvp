@@ -1,6 +1,6 @@
 # project/app/routes/participant.py
 
-import os, uuid, hashlib
+import uuid, hashlib
 from flask import (
     Blueprint, request, jsonify, render_template,
     make_response
@@ -20,6 +20,7 @@ from project.app.utils.metrics import (
 from project.app.extensions.limiter import limiter
 from project.app.tasks.task_registry import get_next_task
 from project.app.tasks.task_registry import TASK_SEQUENCE
+from project.app.services.tasks import get_task
 from project.app.utils.session_loader import load_session_by_id
 from project.app.utils.session_loader import (
     get_schema_version,
@@ -680,8 +681,8 @@ import json
 @limiter.limit("30 per minute")
 def load_task(task_id):
     """
-    Universal task loader.
-    Loads task JSON from app/tasks/<task_id>.json
+    Universal participant task loader.
+    Loads the client-safe canonical task through the task service
     Renders via cog_task.html
     """
 
@@ -745,18 +746,14 @@ def load_task(task_id):
             "expected_task": expected_task,
         }), 409
 
-    # ---- Task JSON path ----
-    tasks_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "tasks")
-    )
-    task_file = os.path.join(tasks_dir, f"{task_id}.json")
+    # ---- Load client-safe canonical task ----
+    task = get_task(task_id, include_answer=False)
 
-    if not os.path.isfile(task_file):
-        return jsonify({"error": "task_not_found", "task": task_id}), 404
-
-    # ---- Load task ----
-    with open(task_file, "r", encoding="utf-8") as f:
-        task = json.load(f)
+    if task is None:
+        return jsonify({
+            "error": "task_not_found",
+            "task": task_id,
+        }), 404
 
     # ---- Honeypot field ----
     hp_field = request.cookies.get("hp_field") or "hp_website"
