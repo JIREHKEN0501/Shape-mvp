@@ -26,6 +26,9 @@ from project.app.utils.session_loader import (
     get_schema_version,
     is_schema_supported,
 )
+from project.app.services.routing.experience_routing import (
+    evaluate_experience_routing,
+)
 from project.app.utils.experience_loader import (
     load_experience_by_id,
     experience_belongs_to_participant,
@@ -637,6 +640,67 @@ def get_participant_experience_summary(experience_id):
     )
 
     return jsonify(response), 200
+
+
+# ================================
+# PARTICIPANT EXPERIENCE ROUTING
+# (experience-scoped, governed, read-only)
+# ================================
+
+@participant_bp.route(
+    "/participant/experience/<experience_id>/routing",
+    methods=["GET"],
+)
+@limiter.limit("10 per minute")
+def get_participant_experience_routing(experience_id):
+    participant_id = request.cookies.get("participant_id")
+
+    if not participant_id:
+        return jsonify({
+            "error": "no_participant_cookie"
+        }), 401
+
+    experience = load_experience_by_id(experience_id)
+
+    if experience is None:
+        return jsonify({
+            "error": "experience_not_found"
+        }), 404
+
+    if not experience_belongs_to_participant(
+        experience,
+        participant_id,
+    ):
+        return jsonify({
+            "error": "unauthorized"
+        }), 403
+
+    if experience.get("status") != "completed":
+        return jsonify({
+            "error": "experience_not_completed"
+        }), 409
+
+    result = evaluate_experience_routing(
+        experience_id
+    )
+
+    if not result.get("ok"):
+        return jsonify({
+            "error": result.get(
+                "error",
+                "experience_routing_unavailable",
+            )
+        }), 404
+
+    audit_record(
+        actor=f"participant:{participant_id}",
+        action="retrieve_experience_routing",
+        subject=experience_id,
+        notes="experience_scoped_governed_routing_evaluation",
+    )
+
+    return jsonify(result), 200
+
 
 # ================================
 #  SELF-ERASE
