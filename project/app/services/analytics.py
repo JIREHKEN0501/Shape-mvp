@@ -284,6 +284,10 @@ def generate_experience_summary(experience_id: str) -> Dict[str, Any]:
         else None
     )
 
+    strategy_decisions = _build_experience_strategy_decisions(
+        attempts
+    )
+
     tasks = {}
     sessions = {}
 
@@ -343,7 +347,90 @@ def generate_experience_summary(experience_id: str) -> Dict[str, Any]:
         "tasks": tasks,
         "sessions": sessions,
         "attempts": attempts,
+        "strategy": {
+            "decisions": strategy_decisions,
+        },
     }
+
+
+def _build_experience_strategy_decisions(
+    attempts: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Project persisted strategy responses into experience-scoped
+    decision observations.
+
+    The participant's selected option is preserved as observed.
+    Internal decision codes are resolved server-side from the
+    canonical task definition.
+
+    This does not infer strategy traits or authorize routing.
+    """
+    strategy_decisions: List[Dict[str, Any]] = []
+    task_mapping_cache: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+    # Keep the import local to avoid the analytics/tasks circular
+    # import that exists during application initialization.
+    from project.app.services.tasks import get_task
+
+    for attempt in attempts:
+        task_id = attempt.get("task_id")
+
+        if not task_id:
+            continue
+
+        if task_id not in task_mapping_cache:
+            canonical_task = get_task(
+                task_id,
+                include_answer=True,
+            )
+
+            mapping = {}
+            if isinstance(canonical_task, dict):
+                candidate_mapping = canonical_task.get(
+                    "decision_code_mapping",
+                    {},
+                )
+                if isinstance(candidate_mapping, dict):
+                    mapping = candidate_mapping
+
+            task_mapping_cache[task_id] = mapping
+
+        decision_code_mapping = task_mapping_cache[task_id]
+
+        if not decision_code_mapping:
+            continue
+
+        question_id = attempt.get("question_id")
+        selected_option = attempt.get("user_answer")
+
+        question_mapping = decision_code_mapping.get(
+            question_id,
+            {},
+        )
+
+        if not isinstance(question_mapping, dict):
+            continue
+
+        decision_code = question_mapping.get(selected_option)
+
+        # Do not manufacture a decision code when the canonical
+        # mapping does not contain the observed option.
+        if decision_code is None:
+            continue
+
+        strategy_decisions.append(
+            {
+                "question_id": question_id,
+                "selected_option": selected_option,
+                "decision_code": decision_code,
+                "time_taken_seconds": attempt.get(
+                    "time_taken_seconds"
+                ),
+            }
+        )
+
+    return strategy_decisions
 
 def _match_session_for_attempt(
     attempt: Dict[str, Any],

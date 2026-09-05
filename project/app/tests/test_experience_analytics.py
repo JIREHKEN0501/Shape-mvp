@@ -138,6 +138,44 @@ def test_experience_summary_preserves_objective_and_decision_boundaries(
     assert strategy["decision_observations"] == 2
     assert strategy["accuracy"] is None
 
+def test_experience_summary_builds_server_resolved_strategy_decisions(
+    monkeypatch,
+    tmp_path,
+):
+    log_file = tmp_path / "data_log.jsonl"
+    _write_experience_records(log_file)
+
+    monkeypatch.setattr(
+        "project.app.services.analytics.DATA_LOG",
+        str(log_file),
+    )
+
+    summary = generate_experience_summary("experience-1")
+
+    strategy = summary["strategy"]
+    decisions = strategy["decisions"]
+
+    assert len(decisions) == 2
+
+    assert decisions[0] == {
+        "question_id": "suc_q1",
+        "selected_option": "Secure immediate stability",
+        "decision_code": "stability_first",
+        "time_taken_seconds": 19,
+    }
+
+    assert decisions[1] == {
+        "question_id": "suc_q2",
+        "selected_option": "Balance speed with safeguards",
+        "decision_code": "balanced_safeguards",
+        "time_taken_seconds": 20,
+    }
+
+    # The raw participant observations remain untouched.
+    assert all(
+        "decision_code" not in attempt
+        for attempt in summary["attempts"]
+    )
 
 def test_experience_temporal_analysis_does_not_overinterpret_small_sample(
     monkeypatch,
@@ -513,3 +551,80 @@ def test_participant_submission_persists_completed_session_for_experience_analyt
     assert summary["objective_questions"] == 2
     assert summary["correct_objective_questions"] == 2
     assert summary["objective_accuracy"] == 1.0
+
+def test_experience_strategy_decisions_are_isolated_by_experience(
+    monkeypatch,
+    tmp_path,
+):
+    log_file = tmp_path / "data_log.jsonl"
+
+    records = [
+        {
+            "participant_id": "participant-1",
+            "experience_id": "experience-A",
+            "session_id": "session-A",
+            "task_id": "strategy_under_constraint_v1",
+            "session_complete": True,
+            "modules": [
+                {
+                    "module_name": "allocation_round_1",
+                    "questions": [
+                        {
+                            "question_id": "suc_q1",
+                            "user_answer": "Secure immediate stability",
+                            "time_taken_seconds": 10,
+                        }
+                    ],
+                }
+            ],
+        },
+        {
+            "participant_id": "participant-1",
+            "experience_id": "experience-B",
+            "session_id": "session-B",
+            "task_id": "strategy_under_constraint_v1",
+            "session_complete": True,
+            "modules": [
+                {
+                    "module_name": "allocation_round_1",
+                    "questions": [
+                        {
+                            "question_id": "suc_q1",
+                            "user_answer": "Invest in long-term payoff",
+                            "time_taken_seconds": 12,
+                        }
+                    ],
+                }
+            ],
+        },
+    ]
+
+    with log_file.open("w", encoding="utf-8") as f:
+        for record in records:
+            f.write(json.dumps(record) + "\n")
+
+    monkeypatch.setattr(
+        "project.app.services.analytics.DATA_LOG",
+        str(log_file),
+    )
+
+    summary_a = generate_experience_summary("experience-A")
+    summary_b = generate_experience_summary("experience-B")
+
+    assert summary_a["strategy"]["decisions"] == [
+        {
+            "question_id": "suc_q1",
+            "selected_option": "Secure immediate stability",
+            "decision_code": "stability_first",
+            "time_taken_seconds": 10,
+        }
+    ]
+
+    assert summary_b["strategy"]["decisions"] == [
+        {
+            "question_id": "suc_q1",
+            "selected_option": "Invest in long-term payoff",
+            "decision_code": "long_term_payoff",
+            "time_taken_seconds": 12,
+        }
+    ]
