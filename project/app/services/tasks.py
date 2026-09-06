@@ -9,7 +9,6 @@ Used by:
 - /tasks
 - /tasks/<task_id>
 - /tasks/next/<participant_id>
-- start_session (for task_meta)
 - evaluate_task_answer (via get_task)
 """
 

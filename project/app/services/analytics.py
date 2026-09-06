@@ -219,6 +219,39 @@ def _extract_experience_task_attempts(
 
     return attempts
 
+
+def _build_experience_temporal_attempts(
+    attempts: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Adapt experience-scoped attempts to the temporal analysis contract.
+
+    Only attempts with usable timestamps are eligible for temporal
+    analysis. The input is already bounded to one experience.
+    """
+    temporal_attempts = []
+
+    for attempt in attempts:
+        timestamp = attempt.get("ts")
+
+        if timestamp is None:
+            continue
+
+        temporal_attempt = dict(attempt)
+
+        temporal_attempt["response_time_s"] = (
+            attempt.get("time_taken_seconds")
+        )
+
+        temporal_attempt["raw"] = {
+            "metrics": attempt.get("metrics", {}),
+        }
+
+        temporal_attempts.append(temporal_attempt)
+
+    return temporal_attempts
+
+
 def generate_experience_summary(experience_id: str) -> Dict[str, Any]:
     """
     Generate an analytics summary bounded strictly to one experience.
@@ -288,6 +321,12 @@ def generate_experience_summary(experience_id: str) -> Dict[str, Any]:
         attempts
     )
 
+    temporal_attempts = _build_experience_temporal_attempts(
+        attempts
+    )
+    temporal_behavior = _analyze_temporal_behavior(
+        temporal_attempts
+    )
     tasks = {}
     sessions = {}
 
@@ -350,6 +389,7 @@ def generate_experience_summary(experience_id: str) -> Dict[str, Any]:
         "strategy": {
             "decisions": strategy_decisions,
         },
+        "temporal_behavior": temporal_behavior,
     }
 
 

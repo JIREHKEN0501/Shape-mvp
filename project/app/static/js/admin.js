@@ -15,7 +15,7 @@ async function doExport(e) {
     }
 
     const res = await fetch(
-        "/export/" + encodeURIComponent(id),
+        "/admin/export/" + encodeURIComponent(id),
         {
             headers: {
                 "X-ADMIN-TOKEN": token

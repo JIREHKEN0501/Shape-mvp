@@ -628,3 +628,118 @@ def test_experience_strategy_decisions_are_isolated_by_experience(
             "time_taken_seconds": 12,
         }
     ]
+
+def test_experience_temporal_analysis_isolates_experience_records(
+    monkeypatch,
+    tmp_path,
+):
+    import json
+
+    log_file = tmp_path / "data_log.jsonl"
+
+    def make_record(
+        experience_id,
+        session_id,
+        timestamp,
+        user_answer,
+    ):
+        return {
+            "participant_id": "participant-1",
+            "experience_id": experience_id,
+            "session_id": session_id,
+            "task_id": "pattern_recognition_v1",
+            "session_complete": True,
+            "saved_ts": timestamp,
+            "modules": [
+                {
+                    "module_name": "pattern_1",
+                    "questions": [
+                        {
+                            "question_id": "pr_q1",
+                            "user_answer": user_answer,
+                            "correct": "I",
+                            "time_taken_seconds": 5,
+                        }
+                    ],
+                }
+            ],
+        }
+
+    records = [
+        # Experience A: four correct observations.
+        make_record(
+            "experience-A",
+            "session-A1",
+            "2026-08-21T12:00:00Z",
+            "I",
+        ),
+        make_record(
+            "experience-A",
+            "session-A2",
+            "2026-08-21T12:01:00Z",
+            "I",
+        ),
+        make_record(
+            "experience-A",
+            "session-A3",
+            "2026-08-21T12:02:00Z",
+            "I",
+        ),
+        make_record(
+            "experience-A",
+            "session-A4",
+            "2026-08-21T12:03:00Z",
+            "I",
+        ),
+        # Experience B: contrasting observations.
+        make_record(
+            "experience-B",
+            "session-B1",
+            "2026-08-21T12:04:00Z",
+            "H",
+        ),
+        make_record(
+            "experience-B",
+            "session-B2",
+            "2026-08-21T12:05:00Z",
+            "H",
+        ),
+        make_record(
+            "experience-B",
+            "session-B3",
+            "2026-08-21T12:06:00Z",
+            "H",
+        ),
+        make_record(
+            "experience-B",
+            "session-B4",
+            "2026-08-21T12:07:00Z",
+            "H",
+        ),
+    ]
+
+    with log_file.open("w", encoding="utf-8") as f:
+        for record in records:
+            f.write(json.dumps(record) + "\n")
+
+    monkeypatch.setattr(
+        "project.app.services.analytics.DATA_LOG",
+        str(log_file),
+    )
+
+    summary = generate_experience_summary("experience-A")
+
+    assert summary["has_data"] is True
+    assert summary["experience_id"] == "experience-A"
+
+    temporal = summary["temporal_behavior"]
+
+    assert temporal["status"] == "ok"
+    assert temporal["accuracy_trend"] == "stable"
+    assert temporal["fatigue_risk"] == "low"
+
+    # The contrasting observations from Experience B must not
+    # influence Experience A's temporal result.
+    assert summary["total_questions"] == 4
+    assert summary["correct_objective_questions"] == 4
+    assert summary["objective_accuracy"] == 1.0

@@ -133,3 +133,53 @@ def test_security_headers_are_applied():
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["Referrer-Policy"] == "strict-origin"
     assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_admin_participant_export_requires_credentials(monkeypatch):
+    response = _client(monkeypatch).get("/admin/export/test-participant")
+
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "Unauthorized"}
+
+
+def test_admin_participant_export_accepts_admin_token(monkeypatch):
+    response = _client(monkeypatch).get(
+        "/admin/export/test-participant",
+        headers={"X-ADMIN-TOKEN": ADMIN_TOKEN},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert payload["ok"] is True
+    assert payload["participant_id"] == "test-participant"
+    assert "records" in payload
+    assert "matches" in payload
+
+
+def test_admin_participant_export_returns_matching_records(monkeypatch):
+    app = _client(monkeypatch).application
+
+    from project.app.routes.admin import DATA_LOG
+
+    with open(DATA_LOG, "a", encoding="utf-8") as f:
+        f.write(
+            '{"participant_id": "export-test", '
+            '"event_type": "test_record"}\n'
+        )
+
+    response = app.test_client().get(
+        "/admin/export/export-test",
+        headers={"X-ADMIN-TOKEN": ADMIN_TOKEN},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert payload["ok"] is True
+    assert payload["participant_id"] == "export-test"
+    assert payload["matches"] >= 1
+    assert any(
+        item["record"].get("event_type") == "test_record"
+        for item in payload["records"]
+    )
