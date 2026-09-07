@@ -6,10 +6,12 @@ from .routing_trace import generate_routing_trace
 from .signal_arbitrator import SignalArbitrator
 from .signal_extractor import extract_routing_signals
 from .signal_normalizer import normalize_signals
+from .calibration_adapter import calibration_results_to_signals
 
 
 def evaluate_experience_routing(
     experience_id: str,
+    calibration_results: list[Dict[str, Any]] | None = None,
 ) -> Dict[str, Any]:
     """
     Evaluate governed routing evidence produced by one experience.
@@ -42,6 +44,18 @@ def evaluate_experience_routing(
         }
 
     signals = extract_routing_signals(summary)
+
+    if calibration_results:
+        experience_task_ids = set(
+            (summary.get("tasks") or {}).keys()
+        )
+
+        signals.extend(
+            calibration_results_to_signals(
+                calibration_results,
+                experience_task_ids,
+            )
+        )
     normalized_signals = normalize_signals(signals)
 
     arbitration_result = SignalArbitrator().resolve(
