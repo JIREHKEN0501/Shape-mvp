@@ -217,3 +217,45 @@ def test_non_authoritative_prediction_cannot_drive_runtime_escalation(
 
     assert authority["routing_authorized"] is False
     assert authority["authorized_directive"] is None
+
+def test_task_calibration_is_preserved_as_calibration_evidence_only():
+    from project.app.services.routing.evidence_builder import EvidenceBuilder
+
+    calibration_signal = make_signal(
+        "task_calibration",
+        {
+            "task_id": "pattern_recognition_v1",
+            "declared_difficulty": 0.5,
+            "empirical_difficulty": 0.7,
+            "difficulty_delta": 0.2,
+            "confidence": 0.85,
+            "sample_size": 40,
+            "calibration_flag": "underestimated",
+        },
+        source="task_calibration",
+        metadata={
+            "evidence_class": "calibration",
+        },
+    )
+
+    context = EvidenceBuilder().build([calibration_signal])
+
+    assert len(context.calibration.observations) == 1
+
+    observation = context.calibration.observations[0]
+
+    assert observation.kind == "task_calibration"
+    assert observation.value["task_id"] == "pattern_recognition_v1"
+    assert observation.value["empirical_difficulty"] == 0.7
+    assert observation.evidence_class == "calibration"
+
+    result = SignalArbitrator().resolve([calibration_signal])
+
+    assert result["stabilize"] is False
+    assert result["reduce_difficulty"] is False
+    assert result["increase_difficulty"] is False
+
+    authority = result["routing_authority"]["task_calibration"]
+
+    assert authority["routing_authorized"] is False
+    assert authority["authorized_directive"] is None

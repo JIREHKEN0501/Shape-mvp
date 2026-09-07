@@ -100,6 +100,18 @@ class StrategyEvidence:
 
 
 @dataclass(frozen=True)
+class CalibrationEvidence:
+    """
+    Evidence derived from task-level calibration analysis.
+
+    Calibration observations describe empirical task behavior at the
+    population/task level. They are not participant traits and do not
+    carry routing authority by themselves.
+    """
+
+    observations: tuple[EvidenceObservation, ...] = field(default_factory=tuple)
+
+@dataclass(frozen=True)
 class GovernanceEvidence:
     """
     Evidence derived from governance and orchestration constraints.
@@ -121,4 +133,7 @@ class EvidenceContext:
     prediction: PredictionEvidence = field(default_factory=PredictionEvidence)
     pattern: PatternEvidence = field(default_factory=PatternEvidence)
     strategy: StrategyEvidence = field(default_factory=StrategyEvidence)
+    calibration: CalibrationEvidence = field(
+        default_factory=CalibrationEvidence
+    )
     governance: GovernanceEvidence = field(default_factory=GovernanceEvidence)

@@ -18,6 +18,7 @@ from .evidence import (
     PredictionEvidence,
     StrategyEvidence,
     TemporalEvidence,
+    CalibrationEvidence,
 )
 from .signal_schema import RoutingSignal
 from typing import Final
@@ -43,6 +44,8 @@ class EvidenceBuilder:
         "behavior_pattern": "pattern",
 
         "strategy_decision": "strategy",
+
+        "task_calibration": "calibration",
     }
 
     def build(
@@ -55,6 +58,7 @@ class EvidenceBuilder:
         pattern = []
         strategy = []
         governance = []
+        calibration = []
 
         for signal in signals:
 
@@ -92,6 +96,9 @@ class EvidenceBuilder:
             elif domain == "strategy":
                 strategy.append(observation)
 
+            elif domain == "calibration":
+                calibration.append(observation)
+
             elif domain == "governance":
                 governance.append(observation)
 
@@ -113,6 +120,9 @@ class EvidenceBuilder:
             ),
             strategy=StrategyEvidence(
                 observations=tuple(strategy)
+            ),
+            calibration=CalibrationEvidence(
+                observations=tuple(calibration)
             ),
             governance=GovernanceEvidence(
                 observations=tuple(governance)
