@@ -2,6 +2,7 @@ from project.app.services.routing.calibration_adapter import (
     calibration_result_to_signal,
     calibration_results_to_signals,
 )
+from project.app.services.routing.signal_arbitrator import SignalArbitrator
 
 
 def calibration_result(task_id="pattern_recognition_v1"):
@@ -137,3 +138,27 @@ def test_out_of_range_confidence_is_rejected_safely():
     )
 
     assert signal is None
+
+def test_low_confidence_calibration_is_preserved_without_routing_authority():
+    result = calibration_result()
+    result["confidence"] = 0.2
+    result["confidence_level"] = "low"
+
+    signal = calibration_result_to_signal(
+        result,
+        {"pattern_recognition_v1"},
+    )
+
+    assert signal is not None
+    assert signal.confidence == 0.2
+
+    result = SignalArbitrator().resolve([signal])
+
+    assert result["stabilize"] is False
+    assert result["reduce_difficulty"] is False
+    assert result["increase_difficulty"] is False
+
+    assert (
+        result["routing_authority"]["task_calibration"]["routing_authorized"]
+        is False
+    )

@@ -248,3 +248,34 @@ def test_experience_routing_accepts_only_in_scope_calibration(
     assert result["routing"]["stabilize"] is False
     assert result["routing"]["reduce_difficulty"] is False
     assert result["routing"]["increase_difficulty"] is False
+
+def test_experience_routing_continues_without_calibration(
+    monkeypatch,
+):
+    summary = {
+        "experience_id": "experience-1",
+        "has_data": True,
+        "tasks": {
+            "pattern_recognition_v1": {
+                "task_id": "pattern_recognition_v1",
+            },
+        },
+    }
+
+    monkeypatch.setattr(
+        "project.app.services.routing.experience_routing.generate_experience_summary",
+        lambda experience_id: summary,
+    )
+
+    result = evaluate_experience_routing("experience-1")
+
+    assert result["ok"] is True
+    assert result["experience_id"] == "experience-1"
+
+    calibration_signals = [
+        signal
+        for signal in result["trace"]["signals_considered"]
+        if signal["signal_type"] == "task_calibration"
+    ]
+
+    assert calibration_signals == []
