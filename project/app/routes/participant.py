@@ -164,7 +164,7 @@ def index():
 #  CONSENT ROUTE
 # ================================
 
-@participant_bp.route("/consent", methods=["GET", "POST"])
+@participant_bp.route("/consent", methods=["POST"])
 @limiter.limit("5 per minute")
 def consent():
     trip = bot_tripwire()
