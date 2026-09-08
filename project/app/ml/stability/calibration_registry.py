@@ -18,18 +18,20 @@ Design Principles:
 import json
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
+from uuid import uuid4
 
 # ----------------------------------------
 # Calibration Engine Version Metadata
 # ----------------------------------------
 
 CALIBRATION_ENGINE_VERSION = {
-    "model_version": "difficulty_model_v0.3",
-    "weights_version": "weights_v1",
-    "ci_method": "bootstrap_v1",
-    "stability_logic_version": "stability_v1",
-    "drift_logic_version": "zscore_v1",
+    "model_version": "1.0.0",
+    "algorithm": "weighted_signal_difficulty",
+    "bayesian_layer": "conjugate_analytical",
+    "confidence_interval_method": "bootstrap_or_normal_fallback",
+    "drift_detection": "z_score_population_level",
+    "stability_gating": "confidence_interval_overlap",
 }
 
 REGISTRY_PATH = "logs/calibration_registry.jsonl"
@@ -49,16 +51,22 @@ def record_calibration(calibration_output: Dict) -> None:
     _ensure_registry_exists()
 
     snapshot = {
+        "calibration_snapshot_id": str(uuid4()),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "task_id": calibration_output["task_id"],
         "empirical_difficulty": calibration_output["empirical_difficulty"],
         "declared_difficulty": calibration_output["declared_difficulty"],
-        "confidence_interval_95": calibration_output.get("confidence_interval_95"),
+        "difficulty_delta": calibration_output.get("difficulty_delta"),
+        "confidence": calibration_output.get("confidence"),
+        "confidence_interval_95": calibration_output.get(
+            "confidence_interval_95"
+        ),
+        "sample_size": calibration_output.get("sample_size"),
         "confidence_level": calibration_output.get("confidence_level"),
         "calibration_flag": calibration_output.get("calibration_flag"),
-        "engine_metadata": CALIBRATION_ENGINE_VERSION,
+        "drift": calibration_output.get("drift"),
+        "engine_metadata": dict(CALIBRATION_ENGINE_VERSION),
     }
-
     with open(REGISTRY_PATH, "a") as f:
         f.write(json.dumps(snapshot) + "\n")
 
