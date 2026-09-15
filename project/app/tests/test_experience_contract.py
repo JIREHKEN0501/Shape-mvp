@@ -355,3 +355,271 @@ def test_final_task_completion_persists_completed_experience(
     assert resolved is not None
     assert resolved["status"] == "completed"
     assert resolved["completed_ts"] is not None
+
+def test_new_experience_defaults_to_bounded_mode(tmp_path, monkeypatch):
+    from project.app.utils import experience_lifecycle
+
+    log_path = tmp_path / "experience_log.jsonl"
+
+    monkeypatch.setattr(
+        experience_lifecycle,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+
+    experience = experience_lifecycle.create_experience("participant-1")
+
+    assert experience is not None
+    assert experience["mode"] == "bounded"
+    assert experience["adaptive_authorized"] is False
+    assert experience["mode_version"] == "1.0"
+    assert experience["authorization_source"] == "system"
+
+
+def test_experience_mode_contract_survives_reload(tmp_path, monkeypatch):
+    from project.app.utils import experience_lifecycle
+    from project.app.utils import experience_loader
+
+    log_path = tmp_path / "experience_log.jsonl"
+
+    monkeypatch.setattr(
+        experience_lifecycle,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+    monkeypatch.setattr(
+        experience_loader,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+
+    created = experience_lifecycle.create_experience("participant-1")
+
+    assert created is not None
+
+    loaded = experience_loader.load_experience_by_id(
+        created["experience_id"]
+    )
+
+    assert loaded is not None
+    assert loaded["mode"] == "bounded"
+    assert loaded["adaptive_authorized"] is False
+    assert loaded["mode_version"] == "1.0"
+    assert loaded["authorization_source"] == "system"
+
+def test_missing_mode_state_fails_closed():
+    from project.app.utils.experience_loader import resolve_experience_mode
+
+    resolved = resolve_experience_mode({
+        "experience_id": "legacy-experience",
+        "status": "active",
+    })
+
+    assert resolved["mode"] == "bounded"
+    assert resolved["adaptive_authorized"] is False
+    assert resolved["mode_version"] == "1.0"
+    assert resolved["authorization_source"] == "system"
+
+
+def test_invalid_mode_state_fails_closed():
+    from project.app.utils.experience_loader import resolve_experience_mode
+
+    resolved = resolve_experience_mode({
+        "experience_id": "malformed-experience",
+        "mode": "something_else",
+        "adaptive_authorized": "yes",
+        "mode_version": "invalid",
+        "authorization_source": "unknown",
+    })
+
+    assert resolved["mode"] == "bounded"
+    assert resolved["adaptive_authorized"] is False
+    assert resolved["mode_version"] == "1.0"
+    assert resolved["authorization_source"] == "system"
+
+
+def test_bounded_mode_cannot_be_adaptively_authorized():
+    from project.app.utils.experience_loader import resolve_experience_mode
+
+    resolved = resolve_experience_mode({
+        "experience_id": "contradictory-experience",
+        "mode": "bounded",
+        "adaptive_authorized": True,
+        "mode_version": "1.0",
+        "authorization_source": "system",
+    })
+
+    assert resolved["mode"] == "bounded"
+    assert resolved["adaptive_authorized"] is False
+
+
+def test_adaptive_mode_requires_explicit_boolean_authorization():
+    from project.app.utils.experience_loader import resolve_experience_mode
+
+    unauthorized = resolve_experience_mode({
+        "mode": "adaptive",
+        "adaptive_authorized": False,
+        "mode_version": "1.0",
+        "authorization_source": "system",
+    })
+
+    authorized = resolve_experience_mode({
+        "mode": "adaptive",
+        "adaptive_authorized": True,
+        "mode_version": "1.0",
+        "authorization_source": "consent",
+    })
+
+    assert unauthorized["mode"] == "adaptive"
+    assert unauthorized["adaptive_authorized"] is False
+
+    assert authorized["mode"] == "adaptive"
+    assert authorized["adaptive_authorized"] is True
+
+def test_adaptive_authorization_requires_explicit_consent():
+    from project.app.utils.experience_loader import (
+        resolve_experience_authorization,
+    )
+
+    result = resolve_experience_authorization({
+        "mode": "adaptive",
+        "adaptive_authorized": True,
+        "mode_version": "1.0",
+        "authorization_source": "consent",
+    })
+
+    assert result["authorized"] is True
+
+
+def test_adaptive_mode_without_authorization_is_not_authorized():
+    from project.app.utils.experience_loader import (
+        resolve_experience_authorization,
+    )
+
+    result = resolve_experience_authorization({
+        "mode": "adaptive",
+        "adaptive_authorized": False,
+        "mode_version": "1.0",
+        "authorization_source": "consent",
+    })
+
+    assert result["authorized"] is False
+
+
+def test_adaptive_authorization_cannot_come_from_system():
+    from project.app.utils.experience_loader import (
+        resolve_experience_authorization,
+    )
+
+    result = resolve_experience_authorization({
+        "mode": "adaptive",
+        "adaptive_authorized": True,
+        "mode_version": "1.0",
+        "authorization_source": "system",
+    })
+
+    assert result["authorized"] is False
+
+
+def test_bounded_mode_cannot_be_authorized_for_adaptation():
+    from project.app.utils.experience_loader import (
+        resolve_experience_authorization,
+    )
+
+    result = resolve_experience_authorization({
+        "mode": "bounded",
+        "adaptive_authorized": True,
+        "mode_version": "1.0",
+        "authorization_source": "consent",
+    })
+
+    assert result["authorized"] is False
+
+
+def test_malformed_experience_fails_closed_for_adaptation():
+    from project.app.utils.experience_loader import (
+        resolve_experience_authorization,
+    )
+
+    result = resolve_experience_authorization({
+        "mode": "adaptive",
+        "adaptive_authorized": "yes",
+        "authorization_source": "consent",
+    })
+
+    assert result["authorized"] is False
+
+def test_create_experience_can_create_explicitly_authorized_adaptive_mode(
+    tmp_path,
+    monkeypatch,
+):
+    from project.app.utils import experience_lifecycle
+
+    log_path = tmp_path / "experience_log.jsonl"
+
+    monkeypatch.setattr(
+        experience_lifecycle,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+
+    experience = experience_lifecycle.create_experience(
+        "participant-1",
+        mode="adaptive",
+        adaptive_authorized=True,
+        authorization_source="consent",
+    )
+
+    assert experience is not None
+    assert experience["mode"] == "adaptive"
+    assert experience["adaptive_authorized"] is True
+    assert experience["mode_version"] == "1.0"
+    assert experience["authorization_source"] == "consent"
+
+
+def test_create_experience_rejects_adaptive_mode_without_authorization(
+    tmp_path,
+    monkeypatch,
+):
+    from project.app.utils import experience_lifecycle
+
+    log_path = tmp_path / "experience_log.jsonl"
+
+    monkeypatch.setattr(
+        experience_lifecycle,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+
+    experience = experience_lifecycle.create_experience(
+        "participant-1",
+        mode="adaptive",
+        adaptive_authorized=False,
+        authorization_source="consent",
+    )
+
+    assert experience is None
+
+
+def test_create_experience_rejects_system_adaptive_authorization(
+    tmp_path,
+    monkeypatch,
+):
+    from project.app.utils import experience_lifecycle
+
+    log_path = tmp_path / "experience_log.jsonl"
+
+    monkeypatch.setattr(
+        experience_lifecycle,
+        "EXPERIENCE_LOG",
+        str(log_path),
+    )
+
+    experience = experience_lifecycle.create_experience(
+        "participant-1",
+        mode="adaptive",
+        adaptive_authorized=True,
+        authorization_source="system",
+    )
+
+    assert experience is None

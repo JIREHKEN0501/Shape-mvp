@@ -1,8 +1,8 @@
-import random
 """
 project/app/services/tasks.py
 
 Central catalog of demo tasks + helpers to fetch them.
+
 Now loads from project/schemas/task_catalog.json instead of a hard-coded dict.
 
 Used by:
@@ -14,7 +14,10 @@ Used by:
 
 import json
 import os
-from typing import Dict, List, Optional, Any
+import random
+from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Path to the JSON catalog
 TASK_CATALOG_PATH = os.path.abspath(
@@ -263,10 +266,6 @@ def get_task(
 # ---------------------------------------------------------------------------
 # Adaptive next-task engine
 # ---------------------------------------------------------------------------
-
-import json
-from collections import defaultdict
-from pathlib import Path
 
 from project.app.services.analytics import (
     generate_participant_summary
@@ -610,21 +609,94 @@ def choose_behavior_strategy(summary: Dict[str, Any]) -> Dict[str, str]:
     return STRATEGIES["balanced"]
 
 
-def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
+
+def _get_experience_task_exclusion(
+    experience_id: str,
+    participant_id: str,
+) -> tuple[set[str] | None, str | None]:
+    """
+    Resolve the experience-local task exclusion set.
+
+    Experience progression is authoritative for task completion when
+    an experience-scoped adaptive selection is requested.
+
+    Returns:
+        (completed_task_ids, None) on success
+        (None, error) when the experience cannot be used
+    """
+    if not experience_id:
+        return None, "experience_id_required"
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    progression = load_experience_progression(
+        experience_id
+    )
+
+    if progression is None:
+        return None, "experience_not_found"
+
+    if progression.get("participant_id") != participant_id:
+        return None, "experience_not_owned"
+
+    if progression.get("status") == "invalid":
+        return None, "invalid_progression_history"
+
+    completed_tasks = progression.get(
+        "completed_tasks",
+        [],
+    )
+
+    if not isinstance(completed_tasks, list):
+        return None, "invalid_progression_history"
+
+    return (
+        {
+            task_id
+            for task_id in completed_tasks
+            if isinstance(task_id, str) and task_id
+        },
+        None,
+    )
+
+
+def get_next_task_for_participant(
+    participant_id: str,
+    experience_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Public API for the adaptive engine.
 
     Returns a sanitized task dict (no 'answer' field) plus
     a small 'meta' block with how it was chosen.
     """
-    # 1) Load participant history from logs.
+    # 1) Load participant history for behavioral routing signals.
+    #
+    # Participant history remains available to the adaptive model for
+    # category, accuracy, difficulty, and behavioral evidence.
+    #
+    # When an experience is supplied, however, task exclusion is
+    # experience-scoped and must come from authoritative progression
+    # events rather than participant history.
 
     events = _load_participant_events(participant_id)
     selection_summary = _summarise_history(events)
+    if experience_id:
+        seen_ids, exclusion_error = _get_experience_task_exclusion(
+            experience_id,
+            participant_id,
+        )
 
-    # Use the canonical history summary for task exclusion.
-    seen_ids = selection_summary["attempted_task_ids"]
-
+        if exclusion_error is not None:
+            return {
+                "ok": False,
+                "message": exclusion_error,
+            }
+    else:
+        # Preserve legacy participant-scoped adaptive behavior.
+        seen_ids = selection_summary["attempted_task_ids"]
     participant_summary = generate_participant_summary(
         participant_id
     )
@@ -1246,7 +1318,6 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
 
     # 🚨 HARD GUARD — never send broken task to frontend
     if not raw_task.get("instruction") or not raw_task.get("options"):
-        print("⚠️ INVALID TASK DETECTED:", raw_task)
         return {
             "ok": False,
             "message": "Invalid task encountered"
@@ -1256,7 +1327,6 @@ def get_next_task_for_participant(participant_id: str) -> Dict[str, Any]:
 
     # 🚨 SECOND GUARD (after sanitize, just in case)
     if not task_payload.get("instruction") or not task_payload.get("options"):
-        print("⚠️ SANITIZE BROKE TASK:", task_payload)
         return {
             "ok": False,
             "message": "Sanitized task invalid"

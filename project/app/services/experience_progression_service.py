@@ -97,6 +97,105 @@ def _matches_submission_context(
         and session.get("session_complete") is True
     )
 
+def _canonical_question_ids(task_id: str) -> list[str] | None:
+    task = get_task(task_id)
+
+    if task is None:
+        return None
+
+    modules = task.get("modules")
+
+    if not isinstance(modules, list):
+        return None
+
+    question_ids = []
+
+    for module in modules:
+        if not isinstance(module, dict):
+            return None
+
+        questions = module.get("questions")
+
+        if not isinstance(questions, list):
+            return None
+
+        for question in questions:
+            if not isinstance(question, dict):
+                return None
+
+            question_id = question.get("question_id")
+
+            if not isinstance(question_id, str) or not question_id:
+                return None
+
+            question_ids.append(question_id)
+
+    if not question_ids:
+        return None
+
+    return question_ids
+
+
+def _validate_canonical_question_evidence(
+    task_id: str,
+    questions: list,
+) -> tuple[bool, str | None]:
+    canonical_task = get_task(task_id)
+
+    if canonical_task is None:
+        return False, "unknown_task_id"
+
+    modules = canonical_task.get("modules")
+
+    if not isinstance(modules, list) or not modules:
+        return False, "task_evidence_invalid"
+
+    canonical_question_ids = []
+
+    for module in modules:
+        if not isinstance(module, dict):
+            return False, "task_evidence_invalid"
+
+        module_questions = module.get("questions")
+
+        if not isinstance(module_questions, list):
+            return False, "task_evidence_invalid"
+
+        for question in module_questions:
+            if not isinstance(question, dict):
+                return False, "task_evidence_invalid"
+
+            question_id = question.get("question_id")
+
+            if not isinstance(question_id, str) or not question_id:
+                return False, "task_evidence_invalid"
+
+            canonical_question_ids.append(question_id)
+
+    submitted_question_ids = []
+
+    for question in questions:
+        if not isinstance(question, dict):
+            return False, "task_evidence_invalid"
+
+        question_id = question.get("question_id")
+
+        if not isinstance(question_id, str) or not question_id:
+            return False, "task_evidence_invalid"
+
+        submitted_question_ids.append(question_id)
+
+    if len(submitted_question_ids) != len(
+        set(submitted_question_ids)
+    ):
+        return False, "task_evidence_invalid"
+
+    if submitted_question_ids != canonical_question_ids:
+        return False, "task_evidence_invalid"
+
+    return True, None
+
+
 def _validate_task_execution(session: dict) -> tuple[bool, str | None]:
     """
     Validate that a claimed-complete session contains the
@@ -128,6 +227,16 @@ def _validate_task_execution(session: dict) -> tuple[bool, str | None]:
 
         if not questions:
             return False, "task_evidence_missing"
+
+        evidence_valid, evidence_error = (
+            _validate_canonical_question_evidence(
+                task_id,
+                questions,
+            )
+        )
+
+        if not evidence_valid:
+            return False, evidence_error
 
         for question in questions:
             if not isinstance(question, dict):
@@ -165,6 +274,42 @@ def _validate_task_execution(session: dict) -> tuple[bool, str | None]:
 
         if not questions:
             return False, "task_evidence_missing"
+
+        evidence_valid, evidence_error = (
+            _validate_canonical_question_evidence(
+                task_id,
+                questions,
+            )
+        )
+
+        if not evidence_valid:
+            return False, evidence_error
+
+        canonical_question_ids = _canonical_question_ids(task_id)
+
+        if canonical_question_ids is None:
+            return False, "task_evidence_invalid"
+
+        submitted_question_ids = []
+
+        for question in questions:
+            question_id = question.get("question_id")
+
+            if not isinstance(question_id, str) or not question_id:
+                return False, "task_evidence_invalid"
+
+            submitted_question_ids.append(question_id)
+
+        if (
+            len(submitted_question_ids)
+            != len(set(submitted_question_ids))
+        ):
+            return False, "task_evidence_invalid"
+
+        if (
+            submitted_question_ids != canonical_question_ids
+        ):
+            return False, "task_evidence_invalid"
 
         for question in questions:
             if not isinstance(question, dict):
@@ -359,7 +504,10 @@ def complete_task_progression(
                 ),
             }
 
-        final_task = state.get("expected_task") is None
+        final_task = (
+            state.get("expected_task") is None
+            and state.get("mode", "bounded") != "adaptive"
+        )
 
         if final_task:
             completion_event = {

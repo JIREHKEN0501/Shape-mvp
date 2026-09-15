@@ -251,7 +251,13 @@ def test_retry_after_event_write_failure_does_not_persist_session_twice(
                         "correct": "I",
                         "user_answer": "I",
                         "time_taken_seconds": 4,
-                    }
+                    },
+                    {
+                        "question_id": "pr_q2",
+                         "correct": "30",
+                         "user_answer": "30",
+                         "time_taken_seconds": 4,
+                     },
                 ],
             }
         ],
@@ -353,3 +359,315 @@ def test_progression_transition_uses_experience_lock(
 
     assert result["ok"] is True
     assert lock_calls == ["acquire", "release"]
+
+def test_adaptive_task_completion_does_not_auto_complete_experience(
+    monkeypatch,
+):
+    saved_sessions = []
+    events = []
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.validate_task_progression",
+        lambda experience_id, task_id: {
+            "valid": True,
+            "error": None,
+            "expected_task": task_id,
+            "sequence_version": "1.0",
+        },
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.save_session_result",
+        lambda session: saved_sessions.append(dict(session))
+        or dict(session),
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service._append_experience_event",
+        lambda event: events.append(event),
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.load_experience_progression",
+        lambda experience_id: {
+            "status": "active",
+            "expected_task": None,
+            "sequence_version": "1.0",
+            "mode": "adaptive",
+            "adaptive_authorized": True,
+        },
+    )
+
+    session = {
+        "session_id": "session-adaptive-1",
+        "participant_id": "participant-1",
+        "experience_id": "experience-adaptive",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "correct": "I",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                    {
+                        "question_id": "pr_q2",
+                        "correct": "30",
+                        "user_answer": "30",
+                        "time_taken_seconds": 5,
+                    },
+                ],
+            }
+        ],
+    }
+
+    result = complete_task_progression(
+        experience_id="experience-adaptive",
+        participant_id="participant-1",
+        session=session,
+    )
+
+    assert result["ok"] is True
+    assert result["final_task"] is False
+    assert result["next_task_id"] is None
+
+    assert len(saved_sessions) == 1
+    assert len(events) == 1
+    assert events[0]["event"] == "task_completed"
+
+def test_task_evidence_rejects_missing_canonical_question(
+    monkeypatch,
+):
+    saved_sessions = []
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.validate_task_progression",
+        lambda experience_id, task_id: {
+            "valid": True,
+            "error": None,
+            "expected_task": task_id,
+            "sequence_version": "1.0",
+        },
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.save_session_result",
+        lambda session: (
+            saved_sessions.append(dict(session))
+            or dict(session)
+        ),
+    )
+
+    session = {
+        "session_id": "session-missing-question",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                ],
+            }
+        ],
+    }
+
+    result = complete_task_progression(
+        experience_id="experience-1",
+        participant_id="participant-1",
+        session=session,
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "task_evidence_invalid"
+    assert saved_sessions == []
+
+def test_task_evidence_rejects_unknown_question(
+    monkeypatch,
+):
+    saved_sessions = []
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.validate_task_progression",
+        lambda experience_id, task_id: {
+            "valid": True,
+            "error": None,
+            "expected_task": task_id,
+            "sequence_version": "1.0",
+        },
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.save_session_result",
+        lambda session: (
+            saved_sessions.append(dict(session))
+            or dict(session)
+        ),
+    )
+
+    session = {
+        "session_id": "session-unknown-question",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                    {
+                        "question_id": "pr_q999",
+                        "user_answer": "30",
+                        "time_taken_seconds": 4,
+                    },
+                ],
+            }
+        ],
+    }
+
+    result = complete_task_progression(
+        experience_id="experience-1",
+        participant_id="participant-1",
+        session=session,
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "task_evidence_invalid"
+    assert saved_sessions == []
+
+def test_task_evidence_rejects_duplicate_question(
+    monkeypatch,
+):
+    saved_sessions = []
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.validate_task_progression",
+        lambda experience_id, task_id: {
+            "valid": True,
+            "error": None,
+            "expected_task": task_id,
+            "sequence_version": "1.0",
+        },
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.save_session_result",
+        lambda session: (
+            saved_sessions.append(dict(session))
+            or dict(session)
+        ),
+    )
+
+    session = {
+        "session_id": "session-duplicate-question",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                    {
+                        "question_id": "pr_q1",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                ],
+            }
+        ],
+    }
+
+    result = complete_task_progression(
+        experience_id="experience-1",
+        participant_id="participant-1",
+        session=session,
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "task_evidence_invalid"
+    assert saved_sessions == []
+
+def test_task_evidence_accepts_exact_canonical_questions(
+    monkeypatch,
+):
+    saved_sessions = []
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.validate_task_progression",
+        lambda experience_id, task_id: {
+            "valid": True,
+            "error": None,
+            "expected_task": task_id,
+            "sequence_version": "1.0",
+        },
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.save_session_result",
+        lambda session: (
+            saved_sessions.append(dict(session))
+            or dict(session)
+        ),
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service._append_experience_event",
+        lambda event: None,
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.load_experience_progression",
+        lambda experience_id: {
+            "status": "active",
+            "expected_task": "strategy_under_constraint_v1",
+            "sequence_version": "1.0",
+        },
+    )
+
+    session = {
+        "session_id": "session-valid-canonical",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                    {
+                        "question_id": "pr_q2",
+                        "user_answer": "30",
+                        "time_taken_seconds": 5,
+                    },
+                ],
+            }
+        ],
+    }
+
+    result = complete_task_progression(
+        experience_id="experience-1",
+        participant_id="participant-1",
+        session=session,
+    )
+
+    assert result["ok"] is True
+    assert result["task_id"] == "pattern_recognition_v1"
+    assert len(saved_sessions) == 1

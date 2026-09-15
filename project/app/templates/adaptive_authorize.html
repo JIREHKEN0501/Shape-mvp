@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adaptive Experience Authorization</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .authorization-card {
+      max-width: 560px;
+      margin: 80px auto;
+      padding: 28px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    }
+
+    .authorization-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    .authorization-actions button {
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-top: 16px;
+      min-height: 24px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="authorization-card">
+    <h2>Enable an adaptive experience?</h2>
+
+    <p>
+      You have already consented to participate in this project.
+    </p>
+
+    <p>
+      An adaptive experience is different from a bounded experience.
+      If you enable it, HumanOS may use your authorized interaction
+      history within the governed experience to help determine which
+      task you receive next.
+    </p>
+
+    <p>
+      This does not mean that HumanOS is making a diagnosis or assigning
+      a fixed personal characteristic to you. The system remains subject
+      to its governance rules and the limits of the experience.
+    </p>
+
+    <p>
+      You can decline and continue using a bounded experience instead.
+    </p>
+
+    <div class="authorization-actions">
+      <button id="declineBtn" type="button">
+        Continue with bounded experience
+      </button>
+
+      <button id="enableBtn" type="button">
+        Enable adaptive experience
+      </button>
+    </div>
+
+    <div id="status" role="status"></div>
+  </main>
+
+  <script>
+    const enableBtn = document.getElementById("enableBtn");
+    const declineBtn = document.getElementById("declineBtn");
+    const status = document.getElementById("status");
+
+    enableBtn.addEventListener("click", async () => {
+      enableBtn.disabled = true;
+      declineBtn.disabled = true;
+      status.textContent = "Authorizing adaptive experience…";
+
+      try {
+        const response = await fetch(
+          "/participant/adaptive/authorize",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: "{}"
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          status.textContent =
+            "Adaptive authorization could not be completed.";
+          enableBtn.disabled = false;
+          declineBtn.disabled = false;
+          return;
+        }
+
+        status.textContent =
+          "Adaptive experience authorized.";
+
+        window.location.href =
+          "/task/pattern_recognition_v1";
+
+      } catch (error) {
+        console.error(error);
+        status.textContent =
+          "An error occurred while authorizing the adaptive experience.";
+        enableBtn.disabled = false;
+        declineBtn.disabled = false;
+      }
+    });
+
+    declineBtn.addEventListener("click", () => {
+      window.location.href =
+        "/task/pattern_recognition_v1";
+    });
+  </script>
+</body>
+</html>

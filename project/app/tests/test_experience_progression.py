@@ -852,3 +852,281 @@ def test_progression_reconstruction_is_deterministic(
     )
 
     assert first == second
+
+def test_bounded_progression_ignores_adaptive_transition_event(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+
+    events_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "event": "experience_created",
+                        "event_version": "1.0",
+                        "experience_id": "experience-1",
+                        "participant_id": "participant-1",
+                        "sequence_version": "1.0",
+                        "ts": "2026-08-14T12:00:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "event": "task_completed",
+                        "event_version": "1.0",
+                        "experience_id": "experience-1",
+                        "participant_id": "participant-1",
+                        "sequence_version": "1.0",
+                        "task_id": "pattern_recognition_v1",
+                        "session_id": "session-1",
+                        "ts": "2026-08-14T12:01:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "event": "adaptive_transition",
+                        "event_version": "1.0",
+                        "experience_id": "experience-1",
+                        "participant_id": "participant-1",
+                        "from_task_id": "pattern_recognition_v1",
+                        "to_task_id": "strategy_under_constraint_v1",
+                        "ts": "2026-08-14T12:02:00Z",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_session_by_id",
+        lambda session_id: {
+            "session_id": session_id,
+            "participant_id": "participant-1",
+            "experience_id": "experience-1",
+            "task_id": "pattern_recognition_v1",
+            "session_complete": True,
+        },
+    )
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    state = load_experience_progression("experience-1")
+
+    assert state["status"] == "active"
+    assert state["completed_tasks"] == [
+        "pattern_recognition_v1",
+    ]
+    assert state["expected_task"] == (
+        "strategy_under_constraint_v1"
+    )
+
+def test_authorized_adaptive_transition_changes_expected_task(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+
+    events_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "event": "experience_created",
+                        "event_version": "1.0",
+                        "experience_id": "experience-adaptive",
+                        "participant_id": "participant-1",
+                        "sequence_version": "1.0",
+                        "ts": "2026-08-14T12:00:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "event": "task_completed",
+                        "event_version": "1.0",
+                        "experience_id": "experience-adaptive",
+                        "participant_id": "participant-1",
+                        "sequence_version": "1.0",
+                        "task_id": "pattern_recognition_v1",
+                        "session_id": "session-1",
+                        "ts": "2026-08-14T12:01:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "event": "adaptive_transition",
+                        "event_version": "1.0",
+                        "experience_id": "experience-adaptive",
+                        "participant_id": "participant-1",
+                        "from_task_id": "pattern_recognition_v1",
+                        "to_task_id": "strategy_under_constraint_v1",
+                        "ts": "2026-08-14T12:02:00Z",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_session_by_id",
+        lambda session_id: {
+            "session_id": session_id,
+            "participant_id": "participant-1",
+            "experience_id": "experience-adaptive",
+            "task_id": "pattern_recognition_v1",
+            "session_complete": True,
+        },
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_experience_by_id",
+        lambda experience_id: {
+            "experience_id": "experience-adaptive",
+            "participant_id": "participant-1",
+            "mode": "adaptive",
+            "adaptive_authorized": True,
+            "mode_version": "1.0",
+            "authorization_source": "consent",
+        },
+    )
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    state = load_experience_progression(
+        "experience-adaptive"
+    )
+
+    assert state["status"] == "active"
+    assert state["completed_tasks"] == [
+        "pattern_recognition_v1",
+    ]
+    assert state["expected_task"] == "strategy_under_constraint_v1"
+
+
+def test_adaptive_destination_becomes_completed_only_after_task_completion(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+    events_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "event": "experience_created",
+                        "event_version": "1.0",
+                        "experience_id": "experience-adaptive",
+                        "participant_id": "participant-1",
+                        "sequence_version": "1.0",
+                        "ts": "2026-08-14T12:00:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "event": "task_completed",
+                        "event_version": "1.0",
+                        "experience_id": "experience-adaptive",
+                        "participant_id": "participant-1",
+                        "sequence_version": "1.0",
+                        "task_id": "pattern_recognition_v1",
+                        "session_id": "session-1",
+                        "ts": "2026-08-14T12:01:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "event": "adaptive_transition",
+                        "event_version": "1.0",
+                        "experience_id": "experience-adaptive",
+                        "participant_id": "participant-1",
+                        "from_task_id": "pattern_recognition_v1",
+                        "to_task_id": "strategy_under_constraint_v1",
+                        "ts": "2026-08-14T12:02:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "event": "task_completed",
+                        "event_version": "1.0",
+                        "experience_id": "experience-adaptive",
+                        "participant_id": "participant-1",
+                        "sequence_version": "1.0",
+                        "task_id": "strategy_under_constraint_v1",
+                        "session_id": "session-2",
+                        "ts": "2026-08-14T12:03:00Z",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    def load_session(session_id):
+        return {
+            "session_id": session_id,
+            "participant_id": "participant-1",
+            "experience_id": "experience-adaptive",
+            "task_id": (
+                "pattern_recognition_v1"
+                if session_id == "session-1"
+                else "strategy_under_constraint_v1"
+            ),
+            "session_complete": True,
+        }
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_session_by_id",
+        load_session,
+    )
+
+    monkeypatch.setattr(
+        "project.app.utils.experience_progression.load_experience_by_id",
+        lambda experience_id: {
+            "experience_id": "experience-adaptive",
+            "participant_id": "participant-1",
+            "mode": "adaptive",
+            "adaptive_authorized": True,
+            "mode_version": "1.0",
+            "authorization_source": "consent",
+        },
+    )
+
+    from project.app.utils.experience_progression import (
+        load_experience_progression,
+    )
+
+    state = load_experience_progression(
+        "experience-adaptive"
+    )
+
+    assert state["status"] == "active"
+    assert state["completed_tasks"] == [
+        "pattern_recognition_v1",
+        "strategy_under_constraint_v1",
+    ]
+    assert state["expected_task"] is None

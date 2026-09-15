@@ -31,7 +31,7 @@ def test_consent_post_creates_participant_and_experience(
         participant,
         "append_jsonl_secure",
         lambda path, record: (
-            consent_records.append(record)
+            consent_records.append(record) or True
             if path == participant.CONSENT_LOG
             else experience_records.append(record)
         ),
@@ -49,6 +49,17 @@ def test_consent_post_creates_participant_and_experience(
         lambda *args, **kwargs: None,
     )
 
+    monkeypatch.setattr(
+        "project.app.utils.experience_lifecycle.append_jsonl_secure",
+        lambda path, record: (
+            experience_records.append(record) or True
+        ),
+    )
+    monkeypatch.setattr(
+        "project.app.utils.experience_lifecycle._append_experience_event",
+        lambda event: experience_events.append(event),
+    )
+
     response = client.post("/consent")
 
     assert response.status_code == 200
@@ -63,6 +74,7 @@ def test_consent_post_creates_participant_and_experience(
     assert consent_records[0]["participant_id"] == body["participant_id"]
     assert consent_records[0]["consent_given"] is True
     assert consent_records[0]["consent_version"] == 1
+    assert consent_records[0]["adaptive_routing_authorized"] is False
 
     assert len(experience_records) == 1
     assert experience_records[0]["experience_id"] == body["experience_id"]
@@ -106,3 +118,41 @@ def test_task_requires_consent():
 
     assert response.status_code == 401
     assert response.get_json()["error"] == "no_consent"
+
+
+def test_consent_fails_closed_when_persistence_fails(
+    monkeypatch,
+):
+    client = _client()
+
+    monkeypatch.setattr(
+        participant,
+        "append_jsonl_secure",
+        lambda path, record: False,
+    )
+
+    monkeypatch.setattr(
+        participant,
+        "audit_record",
+        lambda *args, **kwargs: None,
+    )
+
+    response = client.post("/consent")
+
+    assert response.status_code == 500
+
+    body = response.get_json()
+
+    assert body["error"] == "consent_persistence_failed"
+
+    set_cookies = response.headers.getlist("Set-Cookie")
+
+    assert not any(
+        "participant_id=" in cookie
+        for cookie in set_cookies
+    )
+
+    assert not any(
+        "experience_id=" in cookie
+        for cookie in set_cookies
+    )

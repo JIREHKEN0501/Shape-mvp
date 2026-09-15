@@ -135,25 +135,45 @@ def test_second_task_is_rejected_before_first_task(
 
 def make_completed_cognitive_session(task_id="pattern_recognition_v1"):
     if task_id == "strategy_under_constraint_v1":
-        session = {
-            "task_id": task_id,
-            "modules": [
-                {
-                    "module_name": "test-module",
-                    "questions": [
-                        {
-                            "question_id": "q1",
-                            "correct": None,
-                            "user_answer": "A",
-                            "time_taken_seconds": 3.0,
-                        }
-                    ],
-                }
-            ],
-        }
+        questions = [
+            {
+                "question_id": "suc_q1",
+                "correct": None,
+                "user_answer": "A",
+                "time_taken_seconds": 3.0,
+            },
+            {
+                "question_id": "suc_q2",
+                "correct": None,
+                "user_answer": "A",
+                "time_taken_seconds": 3.0,
+            },
+        ]
     else:
-        session = make_cognitive_session(task_id)
+        questions = [
+            {
+                "question_id": "pr_q1",
+                "correct": "I",
+                "user_answer": "I",
+                "time_taken_seconds": 3.0,
+            },
+            {
+                "question_id": "pr_q2",
+                "correct": "30",
+                "user_answer": "30",
+                "time_taken_seconds": 3.0,
+            },
+        ]
 
+    session = {
+        "task_id": task_id,
+        "modules": [
+            {
+                "module_name": "test-module",
+                "questions": questions,
+            }
+        ],
+    }
     session["session_complete"] = True
     return session
 
@@ -723,9 +743,9 @@ def test_participant_progression_runs_end_to_end(
 
         assert summary_payload["has_data"] is True
         assert summary_payload["experience_id"] == "experience-1"
-        assert summary_payload["total_questions"] == 2
-        assert summary_payload["objective_questions"] == 1
-        assert summary_payload["decision_observations"] == 1
+        assert summary_payload["total_questions"] == 4
+        assert summary_payload["objective_questions"] == 2
+        assert summary_payload["decision_observations"] == 2
         assert summary_payload["insights"]["has_insights"] is True
 
     records = [

@@ -3,7 +3,7 @@
 import uuid, hashlib
 from flask import (
     Blueprint, request, jsonify, render_template,
-    make_response
+    make_response, current_app
 )
 from functools import wraps
 
@@ -54,6 +54,14 @@ from project.app.services.analytics import (
 from project.app.services.experience_insights import (
     generate_experience_insights,
 )
+from project.app.services.adaptive_authorization import (
+    authorize_adaptive_routing,
+)
+
+from project.app.services.adaptive_experience import (
+    create_authorized_adaptive_experience,
+)
+
 
 participant_bp = Blueprint("participant", __name__)
 
@@ -180,41 +188,34 @@ def consent():
         "timestamp": now_iso(),
         "consent_version": 1,
         "consent_given": True,
+        "adaptive_routing_authorized": False,
         "ip_hash": ip_hash(ip),
     }
 
-    append_jsonl_secure(CONSENT_LOG, record)
+    consent_written = append_jsonl_secure(
+        CONSENT_LOG,
+        record,
+    )
+
+    if not consent_written:
+        return jsonify({
+            "error": "consent_persistence_failed"
+        }), 500
+
     audit_record(
         actor=f"participant:{participant_id}",
         action="consent_given",
     )
 
-    experience_record = {
-        "experience_id": experience_id,
-        "participant_id": participant_id,
-        "status": "active",
-        "sequence_version": "1.0",
-        "created_ts": now_iso(),
-        "completed_ts": None,
-    }
+    experience = create_experience(participant_id)
 
-    append_jsonl_secure(
-        EXPERIENCE_LOG,
-        experience_record,
-    )
+    if experience is None:
+        return jsonify({
+            "error": "experience_creation_failed"
+        }), 500
 
-    experience_created_event = {
-        "event": "experience_created",
-        "event_version": "1.0",
-        "experience_id": experience_id,
-        "participant_id": participant_id,
-        "sequence_version": "1.0",
-        "ts": experience_record["created_ts"],
-    }
+    experience_id = experience["experience_id"]
 
-    _append_experience_event(
-        experience_created_event
-    )
     resp = make_response(jsonify({"ok": True, "participant_id": participant_id, "experience_id": experience_id,}))
     resp.set_cookie(
         "participant_id",
@@ -222,6 +223,7 @@ def consent():
         max_age=60 * 60 * 24 * 365,
         httponly=True,
         samesite="Lax",
+        secure=current_app.config.get("SESSION_COOKIE_SECURE", False),
     )
 
     resp.set_cookie(
@@ -230,6 +232,7 @@ def consent():
         max_age=60 * 60 * 24,
         httponly=True,
         samesite="Lax",
+        secure=current_app.config.get("SESSION_COOKIE_SECURE", False),
     )
 
     return resp
@@ -276,6 +279,7 @@ def start_new_experience():
         max_age=60 * 60 * 24,
         httponly=True,
         samesite="Lax",
+        secure=current_app.config.get("SESSION_COOKIE_SECURE", False),
     )
 
     audit_record(
@@ -293,6 +297,91 @@ def start_new_experience():
 # It is contextual, immutable once saved, and must not be
 # interpreted as a stable personal attribute.
 
+
+# ================================
+# ADAPTIVE AUTHORIZATION PAGE
+# ================================
+
+@participant_bp.route(
+    "/adaptive/authorize",
+    methods=["GET"],
+)
+@limiter.limit("10 per minute")
+def adaptive_authorization_page():
+    participant_id = request.cookies.get("participant_id")
+
+    if not participant_id:
+        return jsonify({
+            "error": "no_participant_cookie"
+        }), 401
+
+    return render_template(
+        "adaptive_authorize.html"
+    )
+
+
+# ================================
+# ADAPTIVE EXPERIENCE AUTHORIZATION
+# ================================
+
+@participant_bp.route(
+    "/participant/adaptive/authorize",
+    methods=["POST"],
+)
+@limiter.limit("5 per minute")
+def authorize_adaptive_experience():
+    participant_id = request.cookies.get("participant_id")
+
+    if not participant_id:
+        return jsonify({
+            "error": "no_participant_cookie"
+        }), 401
+
+    authorized = authorize_adaptive_routing(
+        participant_id
+    )
+
+    if not authorized:
+        return jsonify({
+            "error": "adaptive_authorization_failed"
+        }), 403
+
+    experience = create_authorized_adaptive_experience(
+        participant_id
+    )
+
+    if experience is None:
+        return jsonify({
+            "error": "adaptive_experience_creation_failed"
+        }), 500
+
+    response = jsonify({
+        "ok": True,
+        "participant_id": participant_id,
+        "experience_id": experience["experience_id"],
+        "mode": experience["mode"],
+        "adaptive_authorized": experience["adaptive_authorized"],
+    })
+
+    response.set_cookie(
+        "experience_id",
+        experience["experience_id"],
+        max_age=60 * 60 * 24,
+        httponly=True,
+        samesite="Lax",
+        secure=current_app.config.get("SESSION_COOKIE_SECURE", False),
+    )
+
+    audit_record(
+        actor=f"participant:{participant_id}",
+        action="adaptive_experience_authorized",
+        subject=experience["experience_id"],
+        notes="participant_explicitly_authorized_adaptive_experience",
+    )
+
+    return response, 201
+
+
 # ================================
 #  SUBMIT RESULT
 # ================================
@@ -306,7 +395,6 @@ def submit_result():
         return trip
 
     if not request.is_json:
-        print("❌ NOT JSON")
         return jsonify({"error": "Request must be JSON"}), 400
 
     data = request.get_json()
@@ -708,31 +796,70 @@ def get_participant_experience_routing(experience_id):
 
 @participant_bp.route("/erase", methods=["POST"])
 def erase_self():
-    """Participant deletes their own ID from logs."""
+    """Participant anonymizes their own identifier from persistent logs."""
+
     part = request.cookies.get("participant_id")
+
     if not part:
-        return jsonify({"ok": False, "error": "no_participant_cookie"}), 400
+        return jsonify({
+            "ok": False,
+            "error": "no_participant_cookie",
+        }), 400
 
     from hashlib import sha256
+
     h = sha256(part.encode()).hexdigest()[:16]
     replacement = f"anonymized:{h}"
 
-    from project.app.utils.logging import AUDIT_LOG, CONSENT_LOG, DATA_LOG
-    files = [AUDIT_LOG, CONSENT_LOG, DATA_LOG]
-
-    total = 0
-    for path in files:
-        from project.app.utils.helpers import _anonymize_and_replace_in_file
-        total += _anonymize_and_replace_in_file(path, part, replacement)
-
-    audit_record(
-        actor=f"participant:{part}",
-        action="erase_self",
-        subject="erase:self",
-        extra={"changed_lines": total, "replacement": replacement},
+    from project.app.utils.logging import (
+        AUDIT_LOG,
+        CONSENT_LOG,
+        DATA_LOG,
+        EXPERIENCE_LOG,
+    )
+    from project.app.services.experience_progression_service import (
+        EXPERIENCE_EVENTS_LOG,
+    )
+    from project.app.services.routing.routing_trace_store import (
+        _trace_log_path,
+    )
+    from project.app.utils.helpers import (
+        _anonymize_and_replace_in_file,
     )
 
-    return jsonify({"ok": True, "replacement": replacement, "changed": total})
+    files = [
+        AUDIT_LOG,
+        CONSENT_LOG,
+        DATA_LOG,
+        EXPERIENCE_LOG,
+        EXPERIENCE_EVENTS_LOG,
+        str(_trace_log_path()),
+    ]
+
+    total = 0
+
+    for path in files:
+        total += _anonymize_and_replace_in_file(
+            path,
+            part,
+            replacement,
+        )
+
+    audit_record(
+        actor=f"participant:{replacement}",
+        action="erase_self",
+        subject="erase:self",
+        extra={
+            "changed_lines": total,
+            "replacement": replacement,
+        },
+    )
+
+    return jsonify({
+        "ok": True,
+        "replacement": replacement,
+        "changed": total,
+    })
 
 # ================================
 #  UNIVERSAL TASK LOADER

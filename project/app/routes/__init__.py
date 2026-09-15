@@ -16,11 +16,13 @@ from project.app.services.analytics import (
     generate_global_summary,
 )
 from project.app.services.adaptive import suggest_next_task
+from project.app.services.adaptive_experience_execution import (
+    execute_next_adaptive_task,
+)
 from project.app.services.reports import build_participant_report
 from project.app.services.tasks import (
     list_tasks,
     get_task,
-    get_next_task_for_participant,
 )
 from project.app.core.scoring import score_task_attempt
 from project.app.utils.experience_progression import load_experience_progression
@@ -194,14 +196,45 @@ def tasks_next(participant_id):
 
                 expected_task_id = progression.get("expected_task")
 
-                # All canonical tasks have been completed.
                 if expected_task_id is None:
+                    if progression.get("mode", "bounded") == "adaptive":
+                        completed_tasks = progression.get("completed_tasks", [])
+
+                        if not completed_tasks:
+                            return jsonify({
+                                "ok": False,
+                                "error": "adaptive_current_task_unavailable",
+                            }), 409
+
+                        from_task_id = completed_tasks[-1]
+
+                        adaptive_result = execute_next_adaptive_task(
+                            participant_id=participant_id,
+                            experience_id=experience_id,
+                            from_task_id=from_task_id,
+                        )
+
+                        if adaptive_result.get("ok") is not True:
+                            return jsonify({
+                                "ok": False,
+                                "error": adaptive_result.get(
+                                    "error",
+                                    "adaptive_execution_failed",
+                                ),
+                            }), 409
+
+                        return jsonify({
+                            "ok": True,
+                            "task": adaptive_result["task"],
+                            "experience_id": experience_id,
+                            "adaptive_execution": True,
+                        }), 200
+
                     return jsonify({
                         "ok": False,
                         "message": "Session complete",
                         "experience_complete": True,
                     }), 200
-
                 task = get_task(
                     expected_task_id,
                     include_answer=False,
@@ -222,23 +255,12 @@ def tasks_next(participant_id):
                 }), 200
 
         # ---------------------------------------------------------
-        # General adaptive fallback
+        # Experience context is required
         # ---------------------------------------------------------
-        task = get_next_task_for_participant(participant_id)
-
-        if not task.get("ok", True):
-            return jsonify({
-                "ok": False,
-                "message": task.get(
-                    "message",
-                    "No tasks available"
-                ),
-            })
-
         return jsonify({
-            "ok": True,
-            "task": task,
-        })
+            "ok": False,
+            "error": "experience_context_required",
+        }), 409
 
     except Exception:
         return jsonify({

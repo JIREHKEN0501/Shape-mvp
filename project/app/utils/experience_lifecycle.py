@@ -20,6 +20,9 @@ from project.app.services.experience_progression_service import (
 
 def create_experience(
     participant_id: str,
+    mode: str = "bounded",
+    adaptive_authorized: bool = False,
+    authorization_source: str = "system",
 ) -> dict | None:
     """
     Create a new active experience for an existing participant.
@@ -33,6 +36,26 @@ def create_experience(
     if not participant_id:
         return None
 
+    if mode not in {"bounded", "adaptive"}:
+        return None
+
+    if not isinstance(adaptive_authorized, bool):
+        return None
+
+    if authorization_source not in {"consent", "system"}:
+        return None
+
+    if mode == "bounded":
+        adaptive_authorized = False
+        authorization_source = "system"
+
+    if mode == "adaptive":
+        if (
+            adaptive_authorized is not True
+            or authorization_source != "consent"
+        ):
+            return None
+
     experience_id = str(uuid4())
     created_ts = now_iso()
 
@@ -41,6 +64,10 @@ def create_experience(
         "participant_id": participant_id,
         "status": "active",
         "sequence_version": "1.0",
+        "mode": mode,
+        "adaptive_authorized": adaptive_authorized,
+        "mode_version": "1.0",
+        "authorization_source": authorization_source,
         "created_ts": created_ts,
         "completed_ts": None,
     }
