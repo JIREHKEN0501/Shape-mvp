@@ -75,13 +75,19 @@ def build_session_summary(session: dict) -> dict | None:
 
     # Cognitive tasks
     if "modules" in session:
-        return {
+        summary = {
             "summary_version": SUMMARY_VERSION,
             "summary_type": "cognitive",
             "data": build_cognitive_session_summary(session),
         }
 
-        return None
+        ok, err = validate_summary_schema(summary)
+        if not ok:
+            raise ValueError(f"Invalid session summary: {err}")
+
+        return summary
+
+    return None
     ok, err = validate_summary_schema(summary)
     if not ok:
         raise ValueError(f"Invalid session summary: {err}")

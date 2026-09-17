@@ -17,6 +17,7 @@ from project.app.utils.metrics import (
     compute_behavioral_metrics,
     compute_cognitive_metrics,
 )
+from project.app.services.metrics import evaluate_task_answer
 from project.app.extensions.limiter import limiter
 from project.app.tasks.task_registry import get_next_task
 from project.app.tasks.task_registry import TASK_SEQUENCE
@@ -561,6 +562,9 @@ def submit_result():
     elif "modules" in saved:
         metrics = compute_cognitive_metrics(saved)
         t = "cognitive"
+    elif "answer" in saved:
+        metrics = evaluate_task_answer(saved)
+        t = "single_task"
     else:
         metrics = {"note": "Unknown format"}
         t = "unknown"
