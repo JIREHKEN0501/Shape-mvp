@@ -441,11 +441,33 @@ def submit_result():
     if isinstance(session, dict) and "events" in session:
         ok, msg = validate_behavioral_session(session)
         if not ok:
+            audit_record(
+                actor=f"participant:{participant_id}",
+                action="task_evidence_rejected",
+                subject=experience_id,
+                status="rejected",
+                extra={
+                    "task_id": session.get("task_id"),
+                    "validation_type": "behavioral",
+                },
+                notes=msg,
+            )
             return jsonify({"error": msg}), 400
 
     elif isinstance(session, dict) and "modules" in session:
         ok, msg = validate_cognitive_session(session)
         if not ok:
+            audit_record(
+                actor=f"participant:{participant_id}",
+                action="task_evidence_rejected",
+                subject=experience_id,
+                status="rejected",
+                extra={
+                    "task_id": session.get("task_id"),
+                    "validation_type": "cognitive",
+                },
+                notes=msg,
+            )
             return jsonify({"error": msg}), 400
 
     # ---- Phase 9D-4-B: session metadata (non-identifying) ----
