@@ -1235,6 +1235,16 @@ def get_next_task_for_participant(
         else scored_tasks
     )
 
+    candidate_snapshot = [
+        {
+            "task_id": candidate["task"].get("task_id"),
+            "score": candidate["score"],
+            "rank": rank,
+            "reasons": candidate["reasons"],
+        }
+        for rank, candidate in enumerate(top_slice, start=1)
+    ]
+
     selected = random.choice(top_slice)
 
     raw_task = selected["task"]
@@ -1263,7 +1273,8 @@ def get_next_task_for_participant(
 
             governance_state=governance_state,
 
-            resolved_constraints=resolved_constraints
+            resolved_constraints=resolved_constraints,
+            candidate_snapshot=candidate_snapshot,
         )
     )
 

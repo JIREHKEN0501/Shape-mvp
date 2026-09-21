@@ -671,3 +671,100 @@ def test_task_evidence_accepts_exact_canonical_questions(
     assert result["ok"] is True
     assert result["task_id"] == "pattern_recognition_v1"
     assert len(saved_sessions) == 1
+
+def test_session_id_conflict_rejects_mismatched_persisted_context(
+    monkeypatch,
+    tmp_path,
+):
+    events_file = tmp_path / "experience_events.jsonl"
+    events_file.write_text(
+        '{"event":"experience_created",'
+        '"event_version":"1.0",'
+        '"experience_id":"experience-2",'
+        '"participant_id":"participant-2",'
+        '"sequence_version":"1.0",'
+        '"ts":"2026-08-14T12:00:00Z"}\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.EXPERIENCE_EVENTS_LOG",
+        str(events_file),
+    )
+
+    saved_sessions = []
+
+    def fake_save_session(session):
+        saved_sessions.append(dict(session))
+        return dict(session)
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.save_session_result",
+        fake_save_session,
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.load_session_by_id",
+        lambda session_id: {
+            "session_id": session_id,
+            "participant_id": "participant-2",
+            "experience_id": "experience-2",
+            "task_id": "pattern_recognition_v1",
+            "session_complete": True,
+        },
+    )
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service.validate_task_progression",
+        lambda experience_id, task_id: {
+            "valid": True,
+            "error": None,
+            "expected_task": task_id,
+            "sequence_version": "1.0",
+        },
+    )
+
+    event_attempts = []
+
+    monkeypatch.setattr(
+        "project.app.services.experience_progression_service._append_experience_event",
+        lambda event: event_attempts.append(event),
+    )
+
+    session = {
+        "session_id": "session-reused",
+        "participant_id": "participant-1",
+        "experience_id": "experience-1",
+        "task_id": "pattern_recognition_v1",
+        "session_complete": True,
+        "modules": [
+            {
+                "module_name": "pattern_1",
+                "questions": [
+                    {
+                        "question_id": "pr_q1",
+                        "correct": "I",
+                        "user_answer": "I",
+                        "time_taken_seconds": 4,
+                    },
+                    {
+                        "question_id": "pr_q2",
+                        "correct": "30",
+                        "user_answer": "30",
+                        "time_taken_seconds": 5,
+                    },
+                ],
+            }
+        ],
+    }
+
+    result = complete_task_progression(
+        experience_id="experience-1",
+        participant_id="participant-1",
+        session=session,
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "session_id_conflict"
+    assert saved_sessions == []
+    assert event_attempts == []

@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 def build_selection_trace(
@@ -7,7 +7,8 @@ def build_selection_trace(
     selection_reasons: List[str],
     difficulty_adjustment: int,
     governance_state: Dict[str, Any],
-    resolved_constraints: Dict[str, Any]
+    resolved_constraints: Dict[str, Any],
+    candidate_snapshot: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Build orchestration selection explainability trace.
@@ -15,6 +16,10 @@ def build_selection_trace(
     IMPORTANT:
     Selection traces describe orchestration behavior only.
     They do not represent permanent participant traits.
+
+    candidate_snapshot records the bounded candidate pool considered
+    for the final stochastic selection. It contains orchestration
+    metadata only, not task content or participant evidence.
     """
 
     category_deviation = (
@@ -118,7 +123,7 @@ def build_selection_trace(
         ". ".join(reasoning_parts) + "."
     )
 
-    return {
+    trace = {
 
         "target_category": target_category,
 
@@ -137,3 +142,8 @@ def build_selection_trace(
         "final_selection_reason":
             final_selection_reason
     }
+
+    if candidate_snapshot is not None:
+        trace["candidate_snapshot"] = candidate_snapshot
+
+    return trace

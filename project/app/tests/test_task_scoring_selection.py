@@ -116,10 +116,15 @@ def test_adaptive_selection_randomizes_only_within_top_five(monkeypatch):
         lambda history: {"oscillation_score": 0.0},
     )
 
+    captured_trace = {}
+
+    def capture_routing_trace(*args, **kwargs):
+        captured_trace["trace"] = args[1]
+
     monkeypatch.setattr(
         tasks,
         "persist_routing_trace",
-        lambda *args, **kwargs: None,
+        capture_routing_trace,
     )
 
     monkeypatch.setattr(
@@ -160,3 +165,24 @@ def test_adaptive_selection_randomizes_only_within_top_five(monkeypatch):
         "task_5",
     ]
     assert "task_6" not in candidate_ids
+
+    selection_trace = captured_trace["trace"]["governance"]["selection_trace"]
+    snapshot = selection_trace["candidate_snapshot"]
+
+    assert len(snapshot) == 5
+    assert [item["task_id"] for item in snapshot] == candidate_ids
+    assert [item["rank"] for item in snapshot] == [1, 2, 3, 4, 5]
+
+    for item in snapshot:
+        assert isinstance(item["score"], (int, float))
+        assert isinstance(item["reasons"], list)
+        assert "instruction" not in item
+        assert "options" not in item
+
+    selected_id = result["task_id"]
+    selected_entries = [
+        item for item in snapshot
+        if item["task_id"] == selected_id
+    ]
+
+    assert len(selected_entries) == 1
