@@ -26,6 +26,7 @@ from project.app.services.tasks import (
 )
 from project.app.core.scoring import score_task_attempt
 from project.app.utils.experience_progression import load_experience_progression
+from project.app.routes.admin import admin_required
 
 
 
@@ -94,6 +95,7 @@ def status():
 
 
 @main.route("/dashboard", methods=["GET"])
+@admin_required
 def dashboard():
     """
     Universal analytics dashboard (works for any industry).
@@ -269,6 +271,7 @@ def tasks_next(participant_id):
         }), 500
 
 @main.route("/metrics/summary/<participant_id>", methods=["GET"])
+@admin_required
 def metrics_summary(participant_id):
     """
     Return a detailed metrics summary for a single participant.
@@ -285,6 +288,7 @@ def metrics_summary(participant_id):
     }), 200
 
 @main.route("/metrics/global", methods=["GET"])
+@admin_required
 def metrics_global():
     """
     Return a global metrics summary across all participants.
@@ -295,6 +299,7 @@ def metrics_global():
 
 
 @main.route("/metrics/report/<participant_id>", methods=["GET"])
+@admin_required
 def metrics_report(participant_id):
     """
     Teacher-friendly participant report.
