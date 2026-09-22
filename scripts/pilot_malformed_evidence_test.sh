@@ -66,6 +66,23 @@ printf '%s\n' "$BODY" | jq
 
 test "$HTTP_STATUS" = "400"
 
-echo "🟩 Malformed evidence correctly rejected."
+echo "🟨 Verifying rejection audit..."
 
+AUDIT_MATCH=$(grep '"action": "task_evidence_rejected"' logs/audit_log.jsonl | grep "$EXPERIENCE_ID" | tail -n 1 || true)
+
+test -n "$AUDIT_MATCH"
+
+echo "$AUDIT_MATCH" | jq -e '.action == "task_evidence_rejected"' >/dev/null
+echo "$AUDIT_MATCH" | jq -e '.status == "rejected"' >/dev/null
+echo "$AUDIT_MATCH" | jq -e '.subject == "'"$EXPERIENCE_ID"'"' >/dev/null
+echo "$AUDIT_MATCH" | jq -e '.extra.task_id == "pattern_recognition_v1"' >/dev/null
+echo "$AUDIT_MATCH" | jq -e '.extra.validation_type == "cognitive"' >/dev/null
+
+if echo "$AUDIT_MATCH" | grep -q 'invalid-but-present'; then
+    echo "🔴 Rejected answer leaked into audit record."
+    exit 1
+fi
+
+echo "🟩 Rejection audit verified without answer leakage."
+echo "🟩 Malformed evidence correctly rejected."
 echo "🟢 Malformed-evidence negative-path test completed successfully."
