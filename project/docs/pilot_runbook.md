@@ -1,7 +1,7 @@
 # HumanOS Pilot Runbook
 
 **System:** HumanOS / Shape-MVP
-**Pilot freeze commit:** `b0d898b`, (Protect analytics and dashboard routes)
+**Pilot freeze commit:** `eaa6fe7`, (Protect analytics and dashboard routes)
 **Branch:** `restructure/app-package`
 **Document purpose:** Operational guide for running the HumanOS pilot safely and consistently.
 
@@ -48,7 +48,7 @@ The pilot should generate evidence about system behavior without changing the pr
 
 The current pilot freeze is:
 
-**Commit:** `b0d898b`
+**Commit:** `eaa6fe7`
 **Message:** `Protect analytics and dashboard routes`
 
 This freeze incorporates the final pilot security hardening, including administrative authorization for:
@@ -166,7 +166,7 @@ During an active pilot:
 Before admitting a participant, the operator must verify:
 
 * [ ] Correct HumanOS repository and branch are being used.
-* [ ] Frozen commit is `b0d898b` or an explicitly approved successor.
+* [ ] Frozen commit is `eaa6fe7` or an explicitly approved successor.
 * [ ] Working tree contains no unintended modifications.
 * [ ] Python virtual environment is active.
 * [ ] Required dependencies are installed.
