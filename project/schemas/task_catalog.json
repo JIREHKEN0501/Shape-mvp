@@ -68,14 +68,14 @@
       "task_id": "logic_003",
       "category": "logical_reasoning",
       "difficulty": 3,
-      "instruction": "If the first two statements are true, what can we conclude? 1) All project leads attend the weekly review. 2) Jireh does not attend the weekly review. 3) Therefore:",
+      "instruction": "If the first two statements are true, what can we conclude? 1) All project leads attend the weekly review. 2) The project member does not attend the weekly review. 3) Therefore:",
       "options": [
-        "Jireh is a project lead",
-        "Jireh is not a project lead",
-        "Jireh sometimes leads projects",
+        "The project member is a project lead",
+        "The project member is not a project lead",
+        "The project member sometimes leads projects",
         "Nothing can be concluded"
       ],
-      "answer": "Jireh is not a project lead"
+      "answer": "The project member is not a project lead"
     },
     {
       "task_id": "emotion_001",
@@ -235,7 +235,7 @@
     },
     {
       "task_id": "pattern_completion_v1",
-      "category": "education",
+      "category": "pattern_recognition",
       "difficulty": 1,
       "instruction": "A teacher marks homework every day. On Monday she marked 5 books, Tuesday 10, Wednesday 15. How many books will she mark on Thursday?",
       "options": [    
