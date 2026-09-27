@@ -49,8 +49,9 @@ Analytics module — aggregates historical performance
 
 Admin panel (token-protected) — exports, review tools
 
-No external processors are used in the MVP.
-All data remains locally on the deployment server.
+The Pilot 0 deployment uses an external cloud infrastructure provider as a subprocessor for hosting the HumanOS backend and associated pseudonymized participant data.
+
+Application data is stored on the designated deployment server. The selected Pilot 0 infrastructure is located in the EU, with automated backups remaining within the EU according to the hosting configuration.
 
 3. DATA CATEGORIES PROCESSED
 3.1 Personal Data

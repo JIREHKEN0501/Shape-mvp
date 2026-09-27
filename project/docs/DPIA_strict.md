@@ -58,7 +58,7 @@ system usage metadata (IP hash, rate limiting triggers, bot-tripwire events)
 
 2.2 Scope
 
-Processing occurs on HumanOS servers deployed by the organization using the system (school, company, or research body).
+Processing occurs on infrastructure deployed for the HumanOS service. For Pilot 0, the designated cloud infrastructure is hosted in the EU.
 
 No biometric, facial, or body movement data is collected in the MVP.
 
@@ -69,7 +69,7 @@ Role	Description
 Data Controller	The school, company, or organization using HumanOS
 Data Processor	HumanOS Tech (software platform)
 Data Subject	Students (minors), employees, trainees, or adults
-Third Parties	None at this stage
+Third Parties	Approved infrastructure subprocessors, as documented in processors.md
 3. PURPOSE & NECESSITY OF PROCESSING
 Primary Purposes
 

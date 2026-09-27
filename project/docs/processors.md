@@ -6,7 +6,7 @@ It supports compliance with NDPR, GDPR, FERPA, and school-level data governance 
 
 2. Processor Inventory Table
 Processor Name	Category	Data Shared	Purpose	Storage Location	Risk Level	Contract / DPA Status
-Hosting Provider (TBD—e.g., DigitalOcean / AWS / Azure)	Cloud Infrastructure	Pseudonymized logs, task results	Host backend services and maintain uptime	EU/US region (configurable)	Medium	To draft
+Hetzner Cloud (Pilot 0)	Cloud Infrastructure	Pseudonymized participant logs, task results	Host HumanOS Pilot 0 backend services and maintain uptime	EU — Falkenstein, Germany (fsn1); automated backups remain in EU	Medium	DPA / contractual review pending
 Email Provider (optional—Mailgun/SendGrid)	Transactional Email	Admin email, event alerts	Notify admins of incidents or system alerts	US/EU	Medium	To draft
 Error Monitoring (Sentry / TBD)	Crash/Error Logging	Stack traces, anonymous context	Detect and debug backend issues	EU/US	Medium	To draft
 Analytics (Optional)	System Analytics	Aggregated, anonymized metrics only	Usage insights, performance	EU/US	Low	To draft
